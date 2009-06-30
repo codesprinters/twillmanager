@@ -32,3 +32,11 @@ class Test_WatcherPool(object):
         assert w1 in pool
         assert w2 in pool
 
+    def test_cant_add_watchers_with_duplicate_name(self):
+        w1 = Watcher("Code Sprinters", "go http://www.bananascrum.com/", 100)
+        w2 = Watcher("Code Sprinters", "go http://www.codesprinters.com/", 120)
+
+        pool = WatcherPool()
+        pool.add(w1)
+        assert_raises(KeyError, pool.add, w2)
+

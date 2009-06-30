@@ -9,18 +9,21 @@ import threading
 class WatcherPool(object):
     """ A group of watchers """
     def __init__(self):
-        self.watchers = set()
+        self._lock = threading.Lock() 
+        self.watchers = {}
 
     def add(self, watcher):
-        """ Adds given watcher to the pool"""
-        name = watcher.name
-        if watcher in self.watchers:
-            raise KeyError("Watcher with name `%s` already exists" % name)
-        else:
-            self.watchers.add(watcher)
+        with self._lock:
+            """ Adds given watcher to the pool"""
+            name = watcher.name
+            if name in self.watchers:
+                raise KeyError("Watcher with name `%s` already exists" % name)
+            else:
+                self.watchers[name] = watcher
 
     def __contains__(self, watcher):
-        return watcher in self.watchers
+        with self._lock:
+            return watcher.name in self.watchers
 
     
     
