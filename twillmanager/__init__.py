@@ -9,20 +9,20 @@ from twillmanager.watcher import WorkerSet, Watch
 class ApplicationRoot(object):
     def __init__(self):
         self.worker_set = WorkerSet()
-        self.connection_string = None
+        self.config = None
         self.connection = None
 
     def configure(self, cfg):
         """ Configuration and initialization is delayed to allow working
             with CherryPy configuration API
         """
-        self.connection_string = cfg['sqlite_file']
+        self.config = cfg
         self.connection = sqlite3.connect(cfg['sqlite_file'])
         self.create_tables()
 
         for w in Watch.load_all(self.connection):
             print w.name
-            self.worker_set.add(w, self.connection_string)
+            self.worker_set.add(w, self.config)
 
     def create_tables(self):
         c = self.connection.cursor()

@@ -67,3 +67,21 @@ class Test_Watch(object):
         assert_equal(w2.name, w2loaded.name)
         assert_equal(w2.script, w2loaded.script)
         assert_equal(w2.interval, w2loaded.interval)
+
+    def test_deleting(self):
+        w1 = Watch('codesprinters', 10, "go codesprinters")
+        w1.save(self.connection)
+        w2 = Watch('google', 10, "go google")
+        w2.save(self.connection)
+
+        w2.delete(self.connection)
+
+        w1loaded = Watch.load('codesprinters', self.connection)
+        w2loaded = Watch.load('google', self.connection)
+
+        assert_equal(w1.name, w1loaded.name)
+        assert_equal(w1.script, w1loaded.script)
+        assert_equal(w1.interval, w1loaded.interval)
+
+        assert w2loaded is None
+        

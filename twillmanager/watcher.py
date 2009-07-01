@@ -8,6 +8,9 @@ from multiprocessing import Process, Queue
 from threading import Lock
 
 from sqlite3 import connect
+import twill
+from twill.errors import TwillException
+import twill.parse
 
 # Consts for statuses
 STATUS_OK = 'OK'
@@ -111,15 +114,15 @@ class AsyncProcess(object):
 
 class WatchWorker(AsyncProcess):
     """ Object managing spawning of other workers."""
-    def __init__(self, watch, connstring, manager):
+    def __init__(self, watch, config, manager):
         AsyncProcess.__init__(self, watch.interval)
         self.watch = watch
         self.manager = manager
         self.connection = None
-        self.connstring = connstring
+        self.config = config
 
     def main(self):
-        self.connection = connect(self.connstring)
+        self.connection = connect(self.config['sqlite_file'])
         AsyncProcess.main(self)
 
     def tick(self):
@@ -137,13 +140,19 @@ class WatchWorker(AsyncProcess):
         self.queue_command('execute')
 
     def _execute(self):
-        print self.watch.script
-        status = STATUS_OK
-        old_status = self.watch.status
+        try:
+            print self.watch.script
+            twill.parse._execute_script(self.watch.script.split("\n"))
+            status = STATUS_OK
+        except Exception, e:
+            status = STATUS_FAILED
+            # TODO: handle e
 
-        if old_status != status and old_status != STATUS_UNKNOWN:
+        old_status = self.watch.status
+        self.watch.status = status
+        self.watch.update(self.connection)
+        if old_status != status:
             print "STATUS CHANGED: %s -> %s" % (old_status, status)
-            
 
 class WorkerSet(object):
     """ Object managing spawning of other workers."""
@@ -152,13 +161,13 @@ class WorkerSet(object):
         self.watches = {}
         self.workers = {}
         
-    def add(self, watch, connstring):
+    def add(self, watch, config):
         with self._lock:
             name = watch.name
             if name in self.watches:
                 raise KeyError("Watch `%s` already defined" % name)
             print "Adding watch %s" % name
-            worker = WatchWorker(watch, connstring, self)
+            worker = WatchWorker(watch, config, self)
             worker.spawn(True)
             self.watches[name] = watch
             self.workers[name] = worker
