@@ -12,7 +12,10 @@ def usage():
 def start(config):
     """ Starts the application with given config (filename or dict)"""
     cherrypy.config.update(config)
-    cherrypy.tree.mount(twillmanager.ApplicationRoot(), '/')
+
+    app = twillmanager.ApplicationRoot()
+    cp_app = cherrypy.tree.mount(app, '/', config)
+    app.configure(cp_app.config['twillmanager'])
     cherrypy.engine.start()
     cherrypy.engine.block()
     

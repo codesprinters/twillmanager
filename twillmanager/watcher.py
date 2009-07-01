@@ -24,6 +24,7 @@ class Watch(object):
         self.time = time
 
     def save(self, connection):
+        # FIXME: thread-safety
         c = connection.cursor()
         c.execute("INSERT INTO twills (name, interval, script, status, time) VALUES (?,?,?,?,?)",
             (self.name, self.interval, self.script, self.status, self.time))
@@ -31,6 +32,7 @@ class Watch(object):
         connection.commit()
 
     def update(self, connection):
+        # FIXME: thread-safety
         c = connection.cursor()
         c.execute("UPDATE twills SET interval=?, script=?, status=?, time=? WHERE name = ?",
             (self.interval, self.script, self.status, self.time, self.name))
@@ -38,6 +40,7 @@ class Watch(object):
         connection.commit()
 
     def delete(self, connection):
+        # FIXME: thread-safety
         c = connection.cursor()
         c.execute("DELETE FROM twills WHERE name = ?", (self.name,))
         c.close()
@@ -45,6 +48,7 @@ class Watch(object):
 
     @classmethod
     def load(self, name, connection):
+        # FIXME: thread-safety
         watch = None
         c = connection.cursor()
         c.execute("SELECT interval, script, status, time FROM twills WHERE name = ?", (name,))
@@ -55,6 +59,7 @@ class Watch(object):
 
     @classmethod
     def load_all(self, connection):
+        # FIXME: thread-safety
         watches = []
         c = connection.cursor()
         c.execute("SELECT name, interval, script, status, time FROM twills")
@@ -106,7 +111,7 @@ class AsyncProcess(object):
 
 class WatchWorker(AsyncProcess):
     """ Object managing spawning of other workers."""
-    def __init__(self, watch, manager, connstring):
+    def __init__(self, watch, connstring, manager):
         AsyncProcess.__init__(self, watch.interval)
         self.watch = watch
         self.manager = manager
@@ -147,13 +152,13 @@ class WorkerSet(object):
         self.watches = {}
         self.workers = {}
         
-    def add(self, watch):
+    def add(self, watch, connstring):
         with self._lock:
             name = watch.name
             if name in self.watches:
                 raise KeyError("Watch `%s` already defined" % name)
             print "Adding watch %s" % name
-            worker = WatchWorker(watch, self)
+            worker = WatchWorker(watch, connstring, self)
             worker.spawn(True)
             self.watches[name] = watch
             self.workers[name] = worker
