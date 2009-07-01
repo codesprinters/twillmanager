@@ -1,88 +1,140 @@
 # encoding: utf-8
 
 from __future__ import absolute_import
-from __future__ import with_statement
 
+import time
+from Queue import Empty
+from multiprocessing import Process, Queue
 
-import threading
+# Consts for statuses
+STATUS_OK = 'OK'
+STATUS_FAILED = 'FAILED'
+STATUS_UNKNOWN = 'UNKNOWN'
 
-class WatcherPool(object):
-    """ A group of watchers """
-    def __init__(self):
-        self._lock = threading.Lock() 
-        self.watchers = {}
-
-    def add(self, watcher):
-        with self._lock:
-            """ Adds given watcher to the pool"""
-            name = watcher.name
-            if name in self.watchers:
-                raise KeyError("Watcher with name `%s` already exists" % name)
-            else:
-                self.watchers[name] = watcher
-
-    def __contains__(self, watcher):
-        with self._lock:
-            return watcher.name in self.watchers
-
-    
-    
-
-class Watcher(object):
-    """ The class that actually performs monitoring via twill"""
-    def __init__(self, name, script='', interval=10):
-        """ Creates a new `Watcher`.
-
-            :param name: The identifier of the Watcher
-            :param script: The script text to execute
-            :param interval: interval (in seconds between runs)
-        """
+class Watch(object):
+    """ A simple data transfer object for describing watches """
+    def __init__(self, name, interval, script):
+        self.name = name
         self.interval = interval
         self.script = script
-        self.name = name 
+
+class WatchStatus(object):
+    """ A simple data transfer object for describing watch statuses"""
+    def __init__(self, name, status = STATUS_UNKNOWN, time = None):
+        self.name = name
+        self.status = status # status
+        self.time = time # execution timestamp
+
+class AsyncProcess(object):
+    def __init__(self, daemon):
+        self.queue = Queue(0)
+        self.process = Process(target=self.main)
+        self.process.daemon = daemon
+        self._running = False # this variable is not shared between processes
         
-        self._thread = None # the thread that performs watching
-
-        self._lock = threading.Lock()  # lock for watcher data
-        self._event = threading.Event() # event for sleeping and waking up the thread
-
     def start(self):
-        """ Run monitoring thread. It is safe to call this method when the thread
-            is already running.
-        """
-        with self._lock:
-            if self._thread is not None:
-                return
+        self.process.start()
 
-            self._thread = threading.Thread(target=self._watcher_thread)
-            self._thread.setDaemon(True)
-            self._thread.start()
-            self._event.clear()
+    def is_alive(self):
+        return self.process.is_alive()
 
-    def stop(self):
-        """ Run monitoring thread. It is safe to call this method when the thread
-            is already stopped.
-        """
-        with self._lock:
-            self._thread = None # this will cause the thread to stop on the first check
-            self._event.set()
+    def main(self):
+        try:
+            self._running = True
+            while self._running:
+                item = self.queue.get()
+                self.execute_command(item)
+        finally:
+            self._running = False
 
-    def _watcher_thread(self):
-        """ Method called by the watcher thread. Not to be called externally """
-        print "Watcher script %s started" % self.name
-        while True:
-            # get the control variables in a thread-safe way
-            with self._lock:
-                if self._thread is not threading.currentThread(): break
-                interval = self.interval
-                assert interval is not None
+    def queue_command(self, name, *arguments):
+        """ Queue a command to be executed by the process"""
+        self.queue.put((name, arguments))
 
-            # sleep interval seconds
-            self._event.wait(interval)
+    def execute_command(self, cmd):
+        """ Execute a command queued by _queue_command """
+        name, arguments = cmd
+        func = getattr(self, '_' + name)
+        return func(*arguments)
 
-            with self._lock:
-                if self._thread is not threading.currentThread(): break
-                script = self.script
-            
-            print script
-        print "Watcher script %s finished" % self.name
+class WorkerManager(AsyncProcess):
+    """ Object managing spawning of other workers."""
+    def __init__(self):
+        AsyncProcess.__init__(self, False)
+        self.workers = {}
+        self.statuses = {}
+
+    def add(self, watch):
+        self.queue_command('add', watch)
+        
+    def _add(self, watch):
+        name = watch.name
+        if name in self.workers:
+            raise KeyError("Worker `%s` already defined" % name)
+        print "Adding worker %s" % name
+
+    def remove(self, watch):
+        self.queue_command('remove', watch)
+
+    def _remove(self, watch):
+        name = watch.name
+        if name in self.workers:
+            print "Removing worker %s" % name
+            worker = self.workers[name]
+            worker.quit()
+            del self.workers[name]
+            del self.statuses[name]
+
+    def quit(self):
+        self.queue_command('quit')
+
+    def _quit(self):
+        print "Stopping manager"
+        self._running = False
+
+    def update_status(self, name, status):
+        self.queue_command('update_status', name, status)
+
+    def _update_status(self, name, status):
+        if name not in self.statuses:
+            return
+        assert self.statuses[name].name == name
+        self.statuses[name].status = status
+        self.statuses[name].time = time.time()
+
+
+class Worker(AsyncProcess):
+    """ Object managing spawning of other workers."""
+    def __init__(self, watch, manager):
+        AsyncProcess.__init__(self, True)
+        self.watch = watch
+        self.manager = manager
+
+    def main(self):
+        try:
+            self._running = True
+            while self._running:
+                try:
+                    item = self.queue.get(True, self.watch.interval)
+                    self.execute_command(item)
+                except Empty:
+                    self._execute()
+        finally:
+            self._running = False
+
+    def quit(self):
+        self.queue_command('quit')
+
+    def _quit(self):
+        print "Stopping manager"
+        self._running = False
+
+    def execute(self):
+        self.queue_command('execute')
+
+    def _execute(self):
+        print self.watch.script
+
+if __name__ == '__main__':
+    manager = WorkerManager()
+    manager.start()

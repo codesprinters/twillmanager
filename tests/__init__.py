@@ -4,7 +4,7 @@ from __future__ import absolute_import
 
 from nose.tools import *
 
-from twillmanager.watcher import Watcher, WatcherPool
+from twillmanager.watcher import Watcher
 
 
 class Test_Watcher(object):
@@ -13,30 +13,3 @@ class Test_Watcher(object):
         assert_equal(120, w.interval)
         assert_equal("go http://www.codesprinters.com/", w.script)
         assert_equal("Code Sprinters", w.name)
-
-
-class Test_WatcherPool(object):
-    def test_watchers_can_be_added(self):
-        w1 = Watcher("Google", "go http://www.google.com/", 120)
-        w2 = Watcher("Code Sprinters", "go http://www.codesprinters.com/", 120)
-
-        pool = WatcherPool()
-        assert w1 not in pool
-        assert w2 not in pool
-
-        pool.add(w1)
-        assert w1 in pool
-        assert w2 not in pool
-        
-        pool.add(w2)
-        assert w1 in pool
-        assert w2 in pool
-
-    def test_cant_add_watchers_with_duplicate_name(self):
-        w1 = Watcher("Code Sprinters", "go http://www.bananascrum.com/", 100)
-        w2 = Watcher("Code Sprinters", "go http://www.codesprinters.com/", 120)
-
-        pool = WatcherPool()
-        pool.add(w1)
-        assert_raises(KeyError, pool.add, w2)
-
