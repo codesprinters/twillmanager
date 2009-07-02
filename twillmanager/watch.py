@@ -11,7 +11,7 @@ import twill
 import twill.commands
 import twill.parse
 
-from twillmanager import create_db_connection, create_mailer
+from twillmanager import get_db_connection, create_mailer
 from twillmanager.async import AsyncProcess
 
 __all__ = ['STATUS_FAILED', 'STATUS_OK', 'STATUS_UNKNOWN', 'Watch', 'WorkerSet']
@@ -40,7 +40,6 @@ class Watch(object):
         
 
     def insert(self, connection):
-        # FIXME: thread-safety
         c = connection.cursor()
         c.execute("INSERT INTO twills (name, interval, script, emails, status, time) VALUES (?,?,?,?,?,?)",
             (self.name, self.interval, self.script, self.emails, self.status, self.time))
@@ -49,7 +48,6 @@ class Watch(object):
         connection.commit()
 
     def update(self, connection):
-        # FIXME: thread-safety
         assert self.id is not None
         c = connection.cursor()
         c.execute("UPDATE twills SET name=?, interval=?, script=?, emails=?, status=?, time=? WHERE id = ?",
@@ -63,7 +61,6 @@ class Watch(object):
 
             This avoids overwriting script definition by a worker.
         """
-        # FIXME: thread-safety
         assert self.id is not None
         c = connection.cursor()
         c.execute("UPDATE twills SET status=?, time=? WHERE id = ?",
@@ -72,7 +69,6 @@ class Watch(object):
         connection.commit()
 
     def delete(self, connection):
-        # FIXME: thread-safety
         c = connection.cursor()
         c.execute("DELETE FROM twills WHERE name = ?", (self.name,))
         c.close()
@@ -80,7 +76,6 @@ class Watch(object):
 
     @classmethod
     def load(self, name, connection):
-        # FIXME: thread-safety
         watch = None
         c = connection.cursor()
         c.execute("SELECT interval, script, emails, status, time, id FROM twills WHERE name = ?", (name,))
@@ -91,7 +86,6 @@ class Watch(object):
 
     @classmethod
     def load_all(self, connection):
-        # FIXME: thread-safety
         watches = []
         c = connection.cursor()
         c.execute("SELECT name, interval, script, emails, status, time, id FROM twills ORDER BY name")
@@ -110,7 +104,7 @@ class Worker(AsyncProcess):
         self.config = config
 
     def main(self):
-        self.connection = create_db_connection(self.config)
+        self.connection = get_db_connection(self.config)
         AsyncProcess.main(self)
 
     def tick(self):
@@ -187,7 +181,6 @@ class WorkerSet(object):
             name = watch.name
             if name in self.watches:
                 raise KeyError("Watch `%s` already defined" % name)
-            print "Adding watch %s" % name
             worker = Worker(watch, config, self)
             worker.start(True)
             self.watches[name] = watch
@@ -201,7 +194,6 @@ class WorkerSet(object):
             else:
                 name = watch
 
-            print "Removing worker %s" % name
             if name in self.workers:
                 worker = self.workers[name]
                 worker.quit()

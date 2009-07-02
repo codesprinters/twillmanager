@@ -1,0 +1,43 @@
+<%! import time %>
+<%! import cherrypy %>
+<%inherit file="layout.html" />
+
+<h1>Watches</h1>
+<div class="horizontal-menu">
+    <a href="${cherrypy.url('/new')}">Add a new watch</a>
+</div>
+
+% if len(watches) == 0:
+    <p>No watches defined</p>
+% else:
+    % for w in watches:
+        <div class="watch">
+            <h2>${w.name}</h2>
+
+            <dl>
+                <dt>Status</dt>
+                <dd>${w.status}</dd>
+
+                <dt>Worker status</dt>
+                <dd>
+                    % if w.name in workers and workers[w.name].is_alive():
+                        Worker alive
+                    % else:
+                        Worker dead
+                    % endif
+                </dd>
+
+                <dt>Last check</dt>
+                <dd>
+                    % if w.time:
+                        ${time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(w.time))} UTC
+                    % else:
+                        UNKNOWN
+                    % endif
+                </dd>
+            </dl>
+            
+        </div>
+    % endfor
+% endif
+

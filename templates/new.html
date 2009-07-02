@@ -1,0 +1,38 @@
+<%! import cherrypy %>
+<%inherit file="layout.html" />
+
+<form action="${cherrypy.url('/new')}" method="post">
+    % if len(errors) > 0:
+    <ul class="errors">
+        % for error in errors:
+            <li>${error}</li>
+        % endfor
+    </ul>
+    % endif
+
+    <div>
+        <label for="twill-name">Name:</label>
+        <input id="twill-name" name="name" value="${data.get('name', '')}" />
+    </div>
+    
+    <div>
+        <label for="twill-interval">Interval (in seconds)</label>
+        <input id="twill-interval" name="interval" value="${data.get('interval', '')}" />
+    </div>
+
+    <div>
+        <label for="twill-emails">E-mail addresses for notifications (colon-separated)</label>
+        <input id="twill-emails" name="recipients" value="${data.get('emails', '')}" />
+    </div>
+    
+    <div>
+        <label for="twill-script">Script</label>
+        <textarea id="twill-script" name="script" rows="15">${data.get('script', '')}</textarea>
+    </div>
+
+
+    <div class="button-container">
+        <input type="submit" />
+        <a href="/">Cancel</a>
+    </div>
+</form>
