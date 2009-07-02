@@ -169,8 +169,10 @@ class Worker(AsyncProcess):
 
         subject = "Watch %s status: %s" % (self.watch.name, new_status)
 
+        body = "Script:\n%s\n\nResult:\n%s" % (self.watch.script, message)
+
         mailer = create_mailer(self.config)
-        mailer.send_mail(sender, recipients, subject, message)
+        mailer.send_mail(sender, recipients, subject, body)
         
 
 class WorkerSet(object):
