@@ -11,7 +11,7 @@ import twill
 import twill.commands
 import twill.parse
 
-from twillmanager import create_db_connection
+from twillmanager import create_db_connection, create_mailer
 from twillmanager.async import AsyncProcess
 
 __all__ = ['STATUS_FAILED', 'STATUS_OK', 'STATUS_UNKNOWN', 'Watch', 'WorkerSet']
@@ -152,9 +152,25 @@ class Worker(AsyncProcess):
 
     def status_notify(self, old_status, new_status, message):
         """ Sends out notifications about watch status change"""
+        recipients = self.watch.emails
+
+        if not recipients:
+            return
+
+        # strip
+        recipients = [r.strip() for r in recipients.split(',')]
+        # remove empty addresses
+        recipients = [r for r in recipients if r]
+
+        if len(recipients) == 0:
+            return
+
+        sender = self.config['mail.from']
+
+        subject = "Watch %s status: %s" % (self.watch.name, new_status)
+
         mailer = create_mailer(self.config)
-        print "STATUS CHANGED: %s -> %s" % (old_status, new_status)
-        print message
+        mailer.send_mail(sender, recipients, subject, message)
         
 
 class WorkerSet(object):

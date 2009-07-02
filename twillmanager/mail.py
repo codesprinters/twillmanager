@@ -1,6 +1,7 @@
 # encoding: utf-8
 
 from email.MIMEText import MIMEText
+import os
 import smtplib
 
 class Mailer(object):
@@ -10,15 +11,18 @@ class Mailer(object):
     def send_mail(self, sender, recipients, subject, body):
         raise NotImplementedError()
 
-
-class SMTPMailer(Mailer):
-    def send_mail(self, sender, recipients, subject, body):
+    def _make_message(self, sender, recipients, subject, body):
+        """ Makes a message string """
         recipients = [r.encode('utf-8') for r in recipients]
-
         msg = MIMEText(body)
         msg['Subject'] = subject.encode('utf-8')
         msg['From'] = sender.encode('utf-8')
         msg['To'] = ", ".join(recipients)
+        return msg.as_string()
+
+class SMTPMailer(Mailer):
+    def send_mail(self, sender, recipients, subject, body):
+        msg = self._make_message(sender, recipients, subject, body)
 
         login = self.config.get('mail.smtp.login', None)
         password = self.config.get('mail.smtp.password', None)
@@ -33,8 +37,16 @@ class SMTPMailer(Mailer):
         if login:
             server.login(login, password)
 
-        server.sendmail(sender.encode('utf-8'), recipients, msg.as_string())
+        server.sendmail(sender.encode('utf-8'), [r.encode('utf-8') for r in recipients], msg)
         server.close()
+
+class SendmailMailer(Mailer):
+    def send_mail(self, sender, recipients, subject, body):
+        msg = self._make_message(sender, recipients, subject, body)
+        p = os.popen("%s -t" % self.config.get("mail.sendmail.command", '/usr/bin/sendmail'), 'w')
+        p.write(msg)
+        p.close()
+
 
 def create_mailer(config):
     mode = config['mail.mode']
