@@ -3,43 +3,23 @@
 from __future__ import absolute_import
 
 import sqlite3
-import cherrypy
-from twillmanager.watcher import WorkerSet, Watch
 
-class ApplicationRoot(object):
-    def __init__(self):
-        self.worker_set = WorkerSet()
-        self.config = None
-        self.connection = None
+from twillmanager.mail import create_mailer
 
-    def configure(self, cfg):
-        """ Configuration and initialization is delayed to allow working
-            with CherryPy configuration API
-        """
-        self.config = cfg
-        self.connection = sqlite3.connect(cfg['sqlite_file'])
-        self.create_tables()
+def create_db_connection(config):
+    return sqlite3.connect(config['sqlite.file'])
 
-        for w in Watch.load_all(self.connection):
-            print w.name
-            self.worker_set.add(w, self.config)
-
-    def create_tables(self):
-        c = self.connection.cursor()
-        try:
-            c.execute("SELECT * FROM twills LIMIT 1");
-        except sqlite3.OperationalError:
-            c.execute("""CREATE TABLE twills(
-                id INTEGER PRIMARY KEY,
-                name VARCHAR(255) UNIQUE NOT NULL,
-                interval INTEGER NOT NULL,
-                script TEXT,
-                status VARCHAR(100) NOT NULL,
-                time INTEGER)""")
-        self.connection.commit()
-
-
-    @cherrypy.expose
-    def index(self):
-        return "Hello world"
-    
+def create_tables(connection):
+    c = connection.cursor()
+    try:
+        c.execute("SELECT * FROM twills LIMIT 1");
+    except sqlite3.OperationalError:
+        c.execute("""CREATE TABLE twills(
+            id INTEGER PRIMARY KEY,
+            name VARCHAR(255) UNIQUE NOT NULL,
+            interval INTEGER NOT NULL,
+            script TEXT,
+            emails TEXT,
+            status VARCHAR(100) NOT NULL,
+            time INTEGER)""")
+    connection.commit()

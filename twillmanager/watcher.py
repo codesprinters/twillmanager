@@ -3,14 +3,18 @@
 from __future__ import absolute_import
 from __future__ import with_statement
 
-from Queue import Empty
-from multiprocessing import Process, Queue
+from StringIO import StringIO
 from threading import Lock
+from time import time
 
-from sqlite3 import connect
 import twill
-from twill.errors import TwillException
+import twill.commands
 import twill.parse
+
+from twillmanager import create_db_connection
+from twillmanager.async import AsyncProcess
+
+__all__ = ['STATUS_FAILED', 'STATUS_OK', 'STATUS_UNKNOWN', 'Watch', 'WorkerSet']
 
 # Consts for statuses
 STATUS_OK = 'OK'
@@ -19,26 +23,51 @@ STATUS_UNKNOWN = 'UNKNOWN'
 
 class Watch(object):
     """ A simple data transfer object for describing watches """
-    def __init__(self, name, interval, script, status=STATUS_UNKNOWN, time=None):
+    def __init__(self, name, interval, script, emails = None, status=STATUS_UNKNOWN, time=None, id=None):
         self.name = name
         self.interval = interval
         self.script = script
+        self.emails = emails
         self.status = status
         self.time = time
+        self.id = id
 
     def save(self, connection):
+        if self.id is None:
+            self.insert(connection)
+        else:
+            self.update(connection)
+        
+
+    def insert(self, connection):
         # FIXME: thread-safety
         c = connection.cursor()
-        c.execute("INSERT INTO twills (name, interval, script, status, time) VALUES (?,?,?,?,?)",
-            (self.name, self.interval, self.script, self.status, self.time))
+        c.execute("INSERT INTO twills (name, interval, script, emails, status, time) VALUES (?,?,?,?,?,?)",
+            (self.name, self.interval, self.script, self.emails, self.status, self.time))
+        self.id = c.lastrowid
         c.close()
         connection.commit()
 
     def update(self, connection):
         # FIXME: thread-safety
+        assert self.id is not None
         c = connection.cursor()
-        c.execute("UPDATE twills SET interval=?, script=?, status=?, time=? WHERE name = ?",
-            (self.interval, self.script, self.status, self.time, self.name))
+        c.execute("UPDATE twills SET name=?, interval=?, script=?, emails=?, status=?, time=? WHERE id = ?",
+            (self.name, self.interval, self.script, self.emails, self.status, self.time, self.id))
+        c.close()
+        connection.commit()
+
+    def update_status(self, connection):
+        """ Updates only information related to status check
+            (status, check time, messages).
+
+            This avoids overwriting script definition by a worker.
+        """
+        # FIXME: thread-safety
+        assert self.id is not None
+        c = connection.cursor()
+        c.execute("UPDATE twills SET status=?, time=? WHERE id = ?",
+            (self.status, self.time, self.id))
         c.close()
         connection.commit()
 
@@ -54,7 +83,7 @@ class Watch(object):
         # FIXME: thread-safety
         watch = None
         c = connection.cursor()
-        c.execute("SELECT interval, script, status, time FROM twills WHERE name = ?", (name,))
+        c.execute("SELECT interval, script, emails, status, time, id FROM twills WHERE name = ?", (name,))
         for row in c:
             watch = Watch(name, *row)
         c.close()
@@ -65,55 +94,14 @@ class Watch(object):
         # FIXME: thread-safety
         watches = []
         c = connection.cursor()
-        c.execute("SELECT name, interval, script, status, time FROM twills")
+        c.execute("SELECT name, interval, script, emails, status, time, id FROM twills")
         for row in c:
             watches.append(Watch(*row))
         c.close()
         return watches
 
-class AsyncProcess(object):
-    """ A simple abstract class for asynchronously responding server processes """
-    def __init__(self, tick_interval=None):
-        self.queue = Queue(0)
-        self.process = Process(target=self.main)
-        self.tick_interval = tick_interval
-        self._running = False # this variable is not shared between processes
-        
-    def spawn(self, daemon=False):
-        """ Start in another process """
-        self.process.daemon = daemon
-        self.process.start()
 
-    def is_alive(self):
-        return self.process.is_alive()
-
-    def main(self):
-        try:
-            self._running = True
-            while self._running:
-                try:
-                    self.execute_command(self.queue.get(True, self.tick_interval))
-                except Empty:
-                    self.tick()
-        finally:
-            self._running = False
-
-    def tick(self):
-        pass
-        
-
-    def queue_command(self, name, *arguments):
-        """ Queue a command to be executed by the process"""
-        self.queue.put((name, arguments))
-
-    def execute_command(self, cmd):
-        """ Execute a command queued by `_queue_command` """
-        name, arguments = cmd
-        func = getattr(self, '_' + name)
-        return func(*arguments)
-
-class WatchWorker(AsyncProcess):
-    """ Object managing spawning of other workers."""
+class Worker(AsyncProcess):
     def __init__(self, watch, config, manager):
         AsyncProcess.__init__(self, watch.interval)
         self.watch = watch
@@ -122,7 +110,7 @@ class WatchWorker(AsyncProcess):
         self.config = config
 
     def main(self):
-        self.connection = connect(self.config['sqlite_file'])
+        self.connection = create_db_connection(self.config)
         AsyncProcess.main(self)
 
     def tick(self):
@@ -132,7 +120,6 @@ class WatchWorker(AsyncProcess):
         self.queue_command('quit')
 
     def _quit(self):
-        print "Stopping worker"
         self._running = False
 
 
@@ -140,19 +127,35 @@ class WatchWorker(AsyncProcess):
         self.queue_command('execute')
 
     def _execute(self):
+        out = StringIO()
+
         try:
-            print self.watch.script
+            twill.set_errout(out)
+            twill.set_output(out)
             twill.parse._execute_script(self.watch.script.split("\n"))
             status = STATUS_OK
         except Exception, e:
             status = STATUS_FAILED
-            # TODO: handle e
+        finally:
+            twill.commands.reset_error()
+            twill.commands.reset_output()
+
 
         old_status = self.watch.status
         self.watch.status = status
-        self.watch.update(self.connection)
+        self.watch.time = time()
+        self.watch.update_status(self.connection)
         if old_status != status:
-            print "STATUS CHANGED: %s -> %s" % (old_status, status)
+            self.status_notify(old_status, status, out.getvalue())
+            
+
+
+    def status_notify(self, old_status, new_status, message):
+        """ Sends out notifications about watch status change"""
+        mailer = create_mailer(self.config)
+        print "STATUS CHANGED: %s -> %s" % (old_status, new_status)
+        print message
+        
 
 class WorkerSet(object):
     """ Object managing spawning of other workers."""
@@ -167,8 +170,8 @@ class WorkerSet(object):
             if name in self.watches:
                 raise KeyError("Watch `%s` already defined" % name)
             print "Adding watch %s" % name
-            worker = WatchWorker(watch, config, self)
-            worker.spawn(True)
+            worker = Worker(watch, config, self)
+            worker.start(True)
             self.watches[name] = watch
             self.workers[name] = worker
 

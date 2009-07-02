@@ -5,21 +5,14 @@ from __future__ import absolute_import
 import sqlite3
 from nose.tools import *
 
+from twillmanager import create_tables
 from twillmanager.watcher import Watch
 
 
 class Test_Watch(object):
     def setUp(self):
         self.connection = sqlite3.connect(':memory:')
-        c = self.connection.cursor()
-        c.execute("""CREATE TABLE twills(
-            id INTEGER PRIMARY KEY,
-            name VARCHAR(255) UNIQUE NOT NULL,
-            interval INTEGER NOT NULL,
-            script TEXT,
-            status VARCHAR(100) NOT NULL,
-            time INTEGER)""")
-        c.close()
+        create_tables(self.connection)
 
     def test_saving(self):
         w1 = Watch('codesprinters', 10, "go codesprinters")
