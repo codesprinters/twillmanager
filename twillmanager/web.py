@@ -4,7 +4,7 @@ from __future__ import absolute_import
 
 import cherrypy
 from twillmanager import create_db_connection, create_tables
-from twillmanager.watcher import WorkerSet, Watch
+from twillmanager.watch import WorkerSet, Watch
 from threading import RLock
 
 class ApplicationRoot(object):

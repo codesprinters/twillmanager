@@ -94,7 +94,7 @@ class Watch(object):
         # FIXME: thread-safety
         watches = []
         c = connection.cursor()
-        c.execute("SELECT name, interval, script, emails, status, time, id FROM twills")
+        c.execute("SELECT name, interval, script, emails, status, time, id FROM twills ORDER BY name")
         for row in c:
             watches.append(Watch(*row))
         c.close()
@@ -167,7 +167,7 @@ class Worker(AsyncProcess):
 
         sender = self.config['mail.from']
 
-        subject = "Watch %s status: %s" % (self.watch.name, new_status)
+        subject = "Watch %s status change %s -> %s" % (self.watch.name, old_status, new_status)
 
         body = "Script:\n%s\n\nResult:\n%s" % (self.watch.script, message)
 
