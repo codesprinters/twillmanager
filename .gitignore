@@ -1,4 +1,5 @@
 nbproject
+dist
 *pyc
 *.egg-info
 twillmanager.sqlite
