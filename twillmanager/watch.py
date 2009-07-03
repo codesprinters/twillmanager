@@ -4,8 +4,8 @@ from __future__ import absolute_import
 from __future__ import with_statement
 
 from StringIO import StringIO
-from threading import Thread, RLock
-from time import time, sleep
+from threading import Thread, RLock, Event as threadEvent
+from time import time
 from multiprocessing import active_children
 
 import twill
@@ -193,15 +193,15 @@ class WorkerSet(object):
         self.workers = {}
         self.config = config
         
+        self.checking_thread_control_event = threadEvent()
         self.checking_thread = Thread(target=self.check_for_dead_workers)
-        self.checking_thread_running = True
         self.checking_thread.daemon = True
         self.checking_thread.start()
 
 
     def finish(self):
         """ Call this to clean up when the application is shut down """
-        self.checking_thread_running = False
+        self.checking_thread_control_event.set()
         self.checking_thread.join()
 
     def is_alive(self, id):
@@ -236,8 +236,10 @@ class WorkerSet(object):
     def check_for_dead_workers(self):
         """ Checks for workers that are dead but shouldn't and restarts them """
 
-        while self.checking_thread_running:
-            sleep(60)
+        while True:
+            self.checking_thread_control_event.wait(60)
+            if self.checking_thread_control_event.isSet():
+                break
             # this one is to remove zombie processes
             active_children()
 
