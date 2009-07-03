@@ -71,7 +71,7 @@ td, th {
     margin-right: 5px;
     border-radius: 5px;
     -moz-border-radius: 5px;
-    -wbkit-border-radius: 5px;
+    -webkit-border-radius: 5px;
 }
 
 .horizontal-menu a:hover {
