@@ -1,4 +1,29 @@
 body {
+    font-family:Verdana,Geneva,Arial,Helvetica,sans-serif;
+    text-align:left;
+    padding: 1em;
+}
+
+
+h1, h2, h3 {
+    font-weight: bold;
+}
+
+h1 {
+    font-size: 200%;
+    color: #C9C9C9;
+    border-bottom: 16px solid #E8E8E8;
+}
+
+h2 {
+    font-size: 150%;
+    color: #CC0000;
+}
+
+hr {
+    height: 4px;
+    background-color: #E8E8E8;
+    border: none;
 }
 
 label {
@@ -7,4 +32,56 @@ label {
 
 textarea {
     width: 100%;
+}
+
+td, th {
+    padding-right: 3px;
+    text-align: left;
+    vertical-align: top;
+}
+
+.watch-inactive-header {
+    color: #C9C9C9;
+}
+
+.button-container-centered {
+    text-align: center;
+}
+
+.clear {
+    clear: both;
+}
+
+.warning {
+    font-weight: bold;
+    text-align: center;
+    font-size: 120%;
+}
+
+.horizontal-menu {
+    margin: 3px 0 0;
+}
+
+.horizontal-menu a {
+    background: white;
+    border: 1px solid black;
+    padding: 2px;
+    display: block;
+    float: left;
+    margin-right: 5px;
+    border-radius: 5px;
+    -moz-border-radius: 5px;
+    -wbkit-border-radius: 5px;
+}
+
+.horizontal-menu a:hover {
+    background: #FEFF94;
+}
+
+.watch {
+    margin: 1em 0;
+}
+
+.watch-status-failed {
+    background-color: #FAA;
 }

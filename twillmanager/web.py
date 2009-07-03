@@ -20,6 +20,11 @@ class ApplicationRoot(object):
 
         self.tpl_lookup = TemplateLookup(directories=[tpl_directory], default_filters=['unicode', 'h'])
 
+    def finish(self):
+        """ Call this to clean up when the application is shut down """
+        if self.worker_set:
+            self.worker_set.finish()
+
     def configure(self, cfg):
         """ Configuration and initialization is delayed to allow working
             with CherryPy configuration API

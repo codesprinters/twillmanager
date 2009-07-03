@@ -1,11 +1,10 @@
 # encoding: utf-8
 <%! import cherrypy %>
 <%inherit file="layout.html" />
-
-<h1>Are you sure to permamently remove watch <em>${watch.name}</em></h1>
+<h1>Deleting: <em>${watch.name}</em></h1>
+<p class="warning">Are you sure to permamently remove watch <em>${watch.name}</em></p>
 <form action="" method="post">
-
-    <div class="button-container">
+    <div class="button-container button-container-centered">
         <input type="submit" value="Yes"/>
         <a href="${cherrypy.url('/')}">Cancel</a>
     </div>

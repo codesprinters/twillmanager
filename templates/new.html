@@ -3,6 +3,8 @@
 <%inherit file="layout.html" />
 <%namespace name="_components" file="_components.html"/>
 
+
+<h1>New watch</h1>
 <form action="${cherrypy.url('/new')}" method="post">
     ${_components.watch_form(data, None, errors)}
 </form>

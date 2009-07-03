@@ -4,14 +4,15 @@ from __future__ import absolute_import
 from __future__ import with_statement
 
 from StringIO import StringIO
-from threading import RLock
-from time import time
+from threading import Thread, RLock
+from time import time, sleep
+from multiprocessing import active_children
 
 import twill
 import twill.commands
 import twill.parse
 
-from twillmanager import get_db_connection, create_mailer
+from twillmanager import get_db_connection, create_mailer, close_db_connection
 from twillmanager.async import AsyncProcess
 
 __all__ = ['STATUS_FAILED', 'STATUS_OK', 'STATUS_UNKNOWN', 'Watch', 'WorkerSet']
@@ -115,6 +116,7 @@ class Worker(AsyncProcess):
         self.connection = None
 
     def main(self):
+        close_db_connection() # to make sure we do not use inherited descriptor from the parent
         self.connection = get_db_connection(self.config)
         self.watch = Watch.load(self.id, self.connection)
         if self.watch is None:
@@ -190,6 +192,17 @@ class WorkerSet(object):
         self._lock = RLock()
         self.workers = {}
         self.config = config
+        
+        self.checking_thread = Thread(target=self.check_for_dead_workers)
+        self.checking_thread_running = True
+        self.checking_thread.daemon = True
+        self.checking_thread.start()
+
+
+    def finish(self):
+        """ Call this to clean up when the application is shut down """
+        self.checking_thread_running = False
+        self.checking_thread.join()
 
     def is_alive(self, id):
         with self._lock:
@@ -219,3 +232,20 @@ class WorkerSet(object):
                 worker = self.workers[id]
                 worker.quit()
                 del self.workers[id]
+
+    def check_for_dead_workers(self):
+        """ Checks for workers that are dead but shouldn't and restarts them """
+
+        while self.checking_thread_running:
+            sleep(60)
+            # this one is to remove zombie processes
+            active_children()
+
+            with self._lock:
+                ids_to_restart = []
+                for id, worker in self.workers.items():
+                    if not worker.is_alive():
+                        ids_to_restart.append(id)
+
+                for id in ids_to_restart:
+                    self.restart(id)

@@ -17,6 +17,13 @@
 <%def name="edit_watch_link(watch, link_text='Edit')">
     <a href="${cherrypy.url('/edit?id=' + str(str(watch.id)))}">${link_text}</a>
 </%def>
+<%def name="watch_div_class(watch)">\
+% if not worker_set.is_alive(watch.id):
+    watch-status-unknown\
+% else:
+    watch-status-${watch.status.lower()}\
+% endif
+</%def>
 
 <%def name="watch_form(data=dict(), watch=None, errors=[])">
     % if len(errors) > 0:

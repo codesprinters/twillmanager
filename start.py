@@ -30,6 +30,7 @@ def start(config):
 
     cherrypy.engine.start()
     cherrypy.engine.block()
+    app.finish()
     
 
 if __name__ == "__main__":

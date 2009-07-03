@@ -1,0 +1,7 @@
+body, div, p, table, td, th, tr, h1, h2, h3 {
+    margin: 0;
+    padding: 0;
+    font-weight: normal;
+    font-size: 100%;
+    font-style: normal;
+}

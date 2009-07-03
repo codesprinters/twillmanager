@@ -7,51 +7,48 @@
 <h1>Watches</h1>
 <div class="horizontal-menu">
     <a href="${cherrypy.url('/new')}">Add a new watch</a>
+    <br class="clear" />
 </div>
+
+<hr />
 
 % if len(watches) == 0:
     <p>No watches defined</p>
 % else:
     % for w in watches:
-        <div class="watch">
-            <h2>${w.name}</h2>
+        
+        <div class="watch ${_components.watch_div_class(w)}">
+            % if worker_set.is_alive(w.id):
+                <h2>${w.name}</h2>
+            % else:
+                <h2 class="watch-inactive-header">${w.name} - worker disabled</h2>
+            % endif 
             <div class="horizontal-menu">
                 ${_components.restart_worker_link(w)}
                 ${_components.stop_worker_link(w)}
                 ${_components.check_worker_link(w)}
                 ${_components.delete_watch_link(w)}
                 ${_components.edit_watch_link(w)}
+                <br class="clear" />
             </div>
-            <dl>
-                <dt>Status</dt>
-                <dd>${w.status}</dd>
-
-                <dt>Worker status</dt>
-                <dd>
-                    % if worker_set.is_alive(w.id):
-                        Alive
-                    % else:
-                        Dead
-                    % endif
-                    ${_components.restart_worker_link(w, 'Restart')}
-                    ${_components.stop_worker_link(w, 'Stop')}
-                </dd>
-
-                <dt>Last check</dt>
-                <dd>
-                    % if w.time:
-                        ${time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(w.time))} UTC
-                    % else:
-                        UNKNOWN
-                    % endif
-                </dd>
-
-                <dt>Script text</dt>
-                <dd>
-                    <pre>${w.script}</pre>
-                </dd>
-            </dl>
+            <table class="watch-parameters">
+                <tr>
+                    <th>Status</th>
+                    <td><strong>${w.status}</strong></td>
+                </tr>
+                <tr>
+                    <th>Last check</th>
+                    <td>
+                        % if w.time:
+                            ${time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(w.time))} UTC
+                        % else:
+                            UNKNOWN
+                        % endif
+                    </td>
+                </tr>
+            </table>
         </div>
+        <hr />
     % endfor
 % endif
 
