@@ -21,7 +21,6 @@ def get_db_connection(config):
 
 def close_db_connection():
     if hasattr(_thread_local, 'connection'):
-        print "Closing db connection"
         _thread_local.connection.close()
         del _thread_local.connection
 
