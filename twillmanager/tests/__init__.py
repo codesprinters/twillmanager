@@ -120,7 +120,7 @@ class Test_Async(object):
     """ Tests for AsyncProcess"""
     def test_messages_are_executed(self):
         def term(process):
-            process._running = False
+            process.running = False
 
         ap = AsyncProcess()
         ap._first = Mock()
@@ -139,11 +139,11 @@ class Test_Async(object):
         ap._first.assert_called_with()
         ap._second.assert_called_with(1)
         ap._third.assert_called_with(1,2)
-        assert not ap._running
+        assert not ap.running
         
     def test_inter_process_communication(self):
         def term(process):
-            process._running = False
+            process.running = False
 
         ap = AsyncProcess()
         ap._quit = lambda: term(ap)
@@ -157,11 +157,11 @@ class Test_Async(object):
 
         ap.process.join()
         assert not ap.is_alive()
-        assert not ap._running
+        assert not ap.running
 
     def test_process_ticks(self):
         def term(process):
-            process._running = False
+            process.running = False
         def tick():
             q.put(123)
 
@@ -178,7 +178,7 @@ class Test_Async(object):
 
         ap.process.join()
         assert not ap.is_alive()
-        assert not ap._running
+        assert not ap.running
 
         received_ticks = []
 

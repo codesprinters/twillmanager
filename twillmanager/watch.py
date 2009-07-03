@@ -161,7 +161,7 @@ class Worker(AsyncProcess):
         self.queue_command('quit')
 
     def _quit(self):
-        self._running = False
+        self.running = False
 
 
     def execute(self):
