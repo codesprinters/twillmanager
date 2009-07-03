@@ -13,14 +13,11 @@ __all__ = ['AsyncProcess']
 class AsyncProcess(object):
     """ A simple abstract class for asynchronously responding server processes """
     
-    def __init__(self, tick_interval=None):
-        """ Create a process
-
-            :param tick_interval: How often should tick() be executed (in seconds)
-        """
+    def __init__(self):
+        """ Create a process """
         self.queue = Queue(0)
         self.process = Process(target=self.main)
-        self.tick_interval = tick_interval
+        self.tick_interval = None
         self._running = False # this variable is not shared between processes
 
     def start(self, daemon=False):
@@ -36,7 +33,7 @@ class AsyncProcess(object):
         return self.process.is_alive()
 
     def main(self):
-        """ Main event loop """
+        """ Main function of the process (the event loop) """
         try:
             self._running = True
             while self._running:

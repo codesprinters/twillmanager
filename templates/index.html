@@ -1,6 +1,8 @@
-<%! import time %>
+# encoding: utf-8
 <%! import cherrypy %>
+<%! import time %>
 <%inherit file="layout.html" />
+<%namespace name="_components" file="_components.html"/>
 
 <h1>Watches</h1>
 <div class="horizontal-menu">
@@ -13,18 +15,26 @@
     % for w in watches:
         <div class="watch">
             <h2>${w.name}</h2>
-
+            <div class="horizontal-menu">
+                ${_components.restart_worker_link(w)}
+                ${_components.stop_worker_link(w)}
+                ${_components.check_worker_link(w)}
+                ${_components.delete_watch_link(w)}
+                ${_components.edit_watch_link(w)}
+            </div>
             <dl>
                 <dt>Status</dt>
                 <dd>${w.status}</dd>
 
                 <dt>Worker status</dt>
                 <dd>
-                    % if w.name in workers and workers[w.name].is_alive():
-                        Worker alive
+                    % if worker_set.is_alive(w.id):
+                        Alive
                     % else:
-                        Worker dead
+                        Dead
                     % endif
+                    ${_components.restart_worker_link(w, 'Restart')}
+                    ${_components.stop_worker_link(w, 'Stop')}
                 </dd>
 
                 <dt>Last check</dt>
@@ -35,8 +45,12 @@
                         UNKNOWN
                     % endif
                 </dd>
+
+                <dt>Script text</dt>
+                <dd>
+                    <pre>${w.script}</pre>
+                </dd>
             </dl>
-            
         </div>
     % endfor
 % endif

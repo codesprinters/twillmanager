@@ -20,8 +20,8 @@ class Test_Watch(object):
         w2 = Watch('google', 10, "go google")
         w2.save(self.connection)
 
-        w1loaded = Watch.load('codesprinters', self.connection)
-        w2loaded = Watch.load('google', self.connection)
+        w1loaded = Watch.load(w1.id, self.connection)
+        w2loaded = Watch.load(w2.id, self.connection)
 
         assert_equal(w1.name, w1loaded.name)
         assert_equal(w1.script, w1loaded.script)
@@ -37,8 +37,8 @@ class Test_Watch(object):
         w2 = Watch('google', 10, "go google")
         w2.save(self.connection)
 
-        w1loaded = Watch.load('codesprinters', self.connection)
-        w2loaded = Watch.load('google', self.connection)
+        w1loaded = Watch.load(w1.id, self.connection)
+        w2loaded = Watch.load(w2.id, self.connection)
 
         assert_equal(w1.name, w1loaded.name)
         assert_equal(w1.script, w1loaded.script)
@@ -50,8 +50,8 @@ class Test_Watch(object):
 
         w1.script = "go http://codesprinters.com"
         w1.update(self.connection)
-        w1loaded = Watch.load('codesprinters', self.connection)
-        w2loaded = Watch.load('google', self.connection)
+        w1loaded = Watch.load(w1.id, self.connection)
+        w2loaded = Watch.load(w2.id, self.connection)
 
         assert_equal(w1.name, w1loaded.name)
         assert_equal(w1.script, w1loaded.script)
@@ -69,8 +69,8 @@ class Test_Watch(object):
 
         w2.delete(self.connection)
 
-        w1loaded = Watch.load('codesprinters', self.connection)
-        w2loaded = Watch.load('google', self.connection)
+        w1loaded = Watch.load(w1.id, self.connection)
+        w2loaded = Watch.load(w2.id, self.connection)
 
         assert_equal(w1.name, w1loaded.name)
         assert_equal(w1.script, w1loaded.script)

@@ -1,0 +1,55 @@
+# encoding: utf-8
+<%! import cherrypy %>
+<%! from urllib import quote %>
+
+<%def name="restart_worker_link(watch, link_text='Restart worker')">
+    <a href="${cherrypy.url('/restart_worker?id=' + quote(str(watch.id)))}">${link_text}</a>
+</%def>
+<%def name="check_worker_link(watch, link_text='Check now')">
+    <a href="${cherrypy.url('/check_now?id=' + quote(str(watch.id)))}">${link_text}</a>
+</%def>
+<%def name="stop_worker_link(watch, link_text='Stop worker')">
+    <a href="${cherrypy.url('/stop_worker?id=' + quote(str(watch.id)))}">${link_text}</a>
+</%def>
+<%def name="delete_watch_link(watch, link_text='Delete')">
+    <a href="${cherrypy.url('/delete?id=' + quote(str(watch.id)))}">${link_text}</a>
+</%def>
+<%def name="edit_watch_link(watch, link_text='Edit')">
+    <a href="${cherrypy.url('/edit?id=' + str(str(watch.id)))}">${link_text}</a>
+</%def>
+
+<%def name="watch_form(data=dict(), watch=None, errors=[])">
+    % if len(errors) > 0:
+        <ul class="errors">
+            % for error in errors:
+                <li>${error}</li>
+            % endfor
+        </ul>
+    % endif
+
+    <div>
+        <label for="twill-name">Name:</label>
+        <input id="twill-name" name="name" value="${data.get('name', watch.name if watch else '')}" />
+    </div>
+
+    <div>
+        <label for="twill-interval">Interval (in seconds)</label>
+        <input id="twill-interval" name="interval" value="${data.get('interval', watch.interval if watch else '')}" />
+    </div>
+
+    <div>
+        <label for="twill-emails">E-mail addresses for notifications (colon-separated)</label>
+        <input id="twill-emails" name="recipients" value="${data.get('emails', watch.emails if watch else '')}" />
+    </div>
+
+    <div>
+        <label for="twill-script">Script</label>
+        <textarea id="twill-script" name="script" rows="15">${data.get('script', watch.script if watch else '')}</textarea>
+    </div>
+
+
+    <div class="button-container">
+        <input type="submit" />
+        <a href="/">Cancel</a>
+    </div>
+</%def>

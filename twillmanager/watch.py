@@ -4,7 +4,7 @@ from __future__ import absolute_import
 from __future__ import with_statement
 
 from StringIO import StringIO
-from threading import Lock
+from threading import RLock
 from time import time
 
 import twill
@@ -70,17 +70,27 @@ class Watch(object):
 
     def delete(self, connection):
         c = connection.cursor()
-        c.execute("DELETE FROM twills WHERE name = ?", (self.name,))
+        c.execute("DELETE FROM twills WHERE id = ?", (self.id,))
         c.close()
         connection.commit()
 
     @classmethod
-    def load(self, name, connection):
+    def load(self, id, connection):
         watch = None
         c = connection.cursor()
-        c.execute("SELECT interval, script, emails, status, time, id FROM twills WHERE name = ?", (name,))
+        c.execute("SELECT name, interval, script, emails, status, time, id FROM twills WHERE id = ?", (id,))
         for row in c:
-            watch = Watch(name, *row)
+            watch = Watch(*row)
+        c.close()
+        return watch
+
+    @classmethod
+    def load_by_name(self, name, connection):
+        watch = None
+        c = connection.cursor()
+        c.execute("SELECT name, interval, script, emails, status, time, id FROM twills WHERE name = ?", (name,))
+        for row in c:
+            watch = Watch(*row)
         c.close()
         return watch
 
@@ -88,7 +98,7 @@ class Watch(object):
     def load_all(self, connection):
         watches = []
         c = connection.cursor()
-        c.execute("SELECT name, interval, script, emails, status, time, id FROM twills ORDER BY name")
+        c.execute("SELECT name, interval, script, emails, status, time,id FROM twills ORDER BY name")
         for row in c:
             watches.append(Watch(*row))
         c.close()
@@ -96,15 +106,20 @@ class Watch(object):
 
 
 class Worker(AsyncProcess):
-    def __init__(self, watch, config, manager):
-        AsyncProcess.__init__(self, watch.interval)
-        self.watch = watch
-        self.manager = manager
-        self.connection = None
+    def __init__(self, id, config):
+        AsyncProcess.__init__(self)
+        self.id = id
         self.config = config
+        
+        self.watch = None
+        self.connection = None
 
     def main(self):
         self.connection = get_db_connection(self.config)
+        self.watch = Watch.load(self.id, self.connection)
+        if self.watch is None:
+            return
+        self.tick_interval = self.watch.interval
         AsyncProcess.main(self)
 
     def tick(self):
@@ -145,7 +160,7 @@ class Worker(AsyncProcess):
 
 
     def status_notify(self, old_status, new_status, message):
-        """ Sends out notifications about watch status change"""
+        """ Sends out notifications about watch status change """
         recipients = self.watch.emails
 
         if not recipients:
@@ -171,31 +186,36 @@ class Worker(AsyncProcess):
 
 class WorkerSet(object):
     """ Object managing spawning of other workers."""
-    def __init__(self):
-        self._lock = Lock()
-        self.watches = {}
+    def __init__(self, config):
+        self._lock = RLock()
         self.workers = {}
-        
-    def add(self, watch, config):
+        self.config = config
+
+    def is_alive(self, id):
         with self._lock:
-            name = watch.name
-            if name in self.watches:
-                raise KeyError("Watch `%s` already defined" % name)
-            worker = Worker(watch, config, self)
+            return id in self.workers and self.workers[id].is_alive()
+
+    def check_now(self, id):
+        with self._lock:
+            self.restart(id)
+            self.workers[id].execute()
+
+    def restart(self, id):
+        with self._lock:
+            self.remove(id)
+            self.add(id)
+
+    def add(self, id):
+        with self._lock:
+            if id in self.workers:
+                return
+            worker = Worker(id, self.config)
+            self.workers[id] = worker
             worker.start(True)
-            self.watches[name] = watch
-            self.workers[name] = worker
 
-    def remove(self, watch):
-        # support both strings and watch objects
+    def remove(self, id):
         with self._lock:
-            if hasattr(watch, 'name'):
-                name = watch.name
-            else:
-                name = watch
-
-            if name in self.workers:
-                worker = self.workers[name]
+            if id in self.workers:
+                worker = self.workers[id]
                 worker.quit()
-            del self.workers[name]
-            del self.watches[name]
+                del self.workers[id]
