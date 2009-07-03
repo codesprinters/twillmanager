@@ -233,6 +233,8 @@ class WorkerSet(object):
                 worker = self.workers[id]
                 worker.quit()
                 del self.workers[id]
+                if worker.process:
+                    worker.process.join()
 
     def check_for_dead_workers(self):
         """ Checks for workers that are dead but shouldn't and restarts them """
