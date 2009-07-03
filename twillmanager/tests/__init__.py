@@ -5,7 +5,7 @@ from __future__ import absolute_import
 import sqlite3
 from nose.tools import *
 
-from twillmanager import create_tables
+from twillmanager.db import create_tables
 from twillmanager.watch import Watch
 
 

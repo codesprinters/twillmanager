@@ -6,8 +6,7 @@ import cherrypy
 from mako.lookup import TemplateLookup
 import os.path
 
-
-from twillmanager import get_db_connection, create_tables
+from twillmanager.db import get_db_connection, create_tables
 from twillmanager.watch import WorkerSet, Watch
 
 class ApplicationRoot(object):
@@ -16,7 +15,7 @@ class ApplicationRoot(object):
         self.worker_set = None
         self.config = None
 
-        tpl_directory = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', 'templates'))
+        tpl_directory = os.path.normpath(os.path.join(os.path.dirname(__file__), 'templates'))
 
         self.tpl_lookup = TemplateLookup(directories=[tpl_directory], default_filters=['unicode', 'h'])
 

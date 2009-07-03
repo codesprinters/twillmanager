@@ -4,7 +4,9 @@
 from setuptools import setup, find_packages
 setup(
     name = "TwillManager",
-    version = "0.1",
+    version = "0.1-rc1",
     packages = find_packages(),
     install_requires=["Cherrypy>=3.1.2", "Mako", "nose", "multiprocessing", "twill"],
+    zip_safe = False,
+    include_package_data = True
 )

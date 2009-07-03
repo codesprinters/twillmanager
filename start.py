@@ -9,9 +9,7 @@ import cherrypy
 import twillmanager
 import twillmanager.web
 
-def usage():
-    """ Prints the start script usage """
-    print "Usage: start.py config_file_name"
+
 
 def start(config):
     """ Starts the application with given config (filename or dict)"""

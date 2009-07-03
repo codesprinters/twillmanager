@@ -2,39 +2,32 @@
 
 from __future__ import absolute_import
 
-import sqlite3
-from threading import local
+import os.path
+import sys
 
-from twillmanager.mail import create_mailer
+import cherrypy
 
-_thread_local = local()
+__all__ = ['start']
 
-__all__ = ['create_mailer', 'get_db_connection', 'close_db_connection' ,'create_db_connection', 'create_tables']
+def usage():
+    """ Prints the start script usage """
+    print "Usage: %s config_file_name"  % sys.argv[0]
 
-def create_db_connection(config):
-    return sqlite3.connect(config['sqlite.file'])
+def start():
+    """ Starts the application """
+    static_directory = os.path.normpath(os.path.join(os.path.dirname(__file__), 'static'))
+    local_config = {'/static': {'tools.staticdir.on': True,
+            'tools.staticdir.dir': static_directory}}
 
-def get_db_connection(config):
-    if not hasattr(_thread_local, 'connection'):
-        _thread_local.connection = create_db_connection(config)
-    return _thread_local.connection
+    cherrypy.config.update(config)
+    cherrypy.config.update(local_config)
 
-def close_db_connection():
-    if hasattr(_thread_local, 'connection'):
-        _thread_local.connection.close()
-        del _thread_local.connection
+    app = twillmanager.web.ApplicationRoot()
+    cp_app = cherrypy.tree.mount(app, '/', config)
+    cp_app.config.update(local_config)
+    app.configure(cp_app.config['twillmanager'])
 
-def create_tables(connection):
-    c = connection.cursor()
-    try:
-        c.execute("SELECT * FROM twills LIMIT 1");
-    except sqlite3.OperationalError:
-        c.execute("""CREATE TABLE twills(
-            id INTEGER PRIMARY KEY,
-            name VARCHAR(255) UNIQUE NOT NULL,
-            interval INTEGER NOT NULL,
-            script TEXT,
-            emails TEXT,
-            status VARCHAR(100) NOT NULL,
-            time INTEGER)""")
-    connection.commit()
+
+    cherrypy.engine.start()
+    cherrypy.engine.block()
+    app.finish()

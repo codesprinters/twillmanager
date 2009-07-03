@@ -1,0 +1,6 @@
+include README
+include LICENCE
+include config.sample
+
+recursive-include twillmanager/templates *
+recursive-include twillmanager/static *

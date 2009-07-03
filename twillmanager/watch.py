@@ -12,7 +12,8 @@ import twill
 import twill.commands
 import twill.parse
 
-from twillmanager import get_db_connection, create_mailer, close_db_connection
+from twillmanager.db import get_db_connection, close_db_connection
+from twillmanager.mail import create_mailer
 from twillmanager.async import AsyncProcess
 
 __all__ = ['STATUS_FAILED', 'STATUS_OK', 'STATUS_UNKNOWN', 'Watch', 'WorkerSet']
