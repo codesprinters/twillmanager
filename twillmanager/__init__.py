@@ -4,25 +4,28 @@ from __future__ import absolute_import
 
 import os.path
 import sys
+from optparse import OptionParser
 
 import cherrypy
 
 import twillmanager.web
+from twillmanager.osutil import daemonize
 
 __all__ = ['start']
-
-def usage():
-    """ Prints the start script usage """
-    print "Usage: %s config_file_name"  % sys.argv[0]
 
 def start():
     """ Starts the application """
 
-    if len(sys.argv) != 2:
-        usage()
-        return
+    p = OptionParser(usage='Usage: %prog [options] config_file')
+    p.add_option('-d', '--daemonize', action='store_true', dest='daemonize',
+                 help='Start twillmanager in daemon mode')
+    opts, args = p.parse_args()
 
-    config_file = sys.argv[1]
+
+    if len(args) != 1:
+        print p.get_usage()
+        sys.exit(1)
+    config_file = args[0]
 
     static_directory = os.path.normpath(os.path.join(os.path.dirname(__file__), 'static'))
     local_config = {'/static': {'tools.staticdir.on': True,
@@ -30,6 +33,10 @@ def start():
 
     cherrypy.config.update(config_file)
     cherrypy.config.update(local_config)
+
+    if opts.daemonize:
+        cherrypy.config.update({'log.screen': False})
+        daemonize()
 
     app = twillmanager.web.ApplicationRoot()
     cp_app = cherrypy.tree.mount(app, '/', config_file)
