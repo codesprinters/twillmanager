@@ -4,3 +4,4 @@ dist
 *.egg-info
 *.swp
 twillmanager.sqlite
+config.cfg
