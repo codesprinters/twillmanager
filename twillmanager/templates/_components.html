@@ -36,17 +36,17 @@
 
     <div>
         <label for="twill-name">Name:</label>
-        <input id="twill-name" name="name" value="${data.get('name', watch.name if watch else '')}" />
+        <input id="twill-name" name="name" value="${data.get('name', watch.name if watch else '')}" class="wideinput"/>
     </div>
 
     <div>
         <label for="twill-interval">Interval (in seconds)</label>
-        <input id="twill-interval" name="interval" value="${data.get('interval', watch.interval if watch else '')}" />
+        <input id="twill-interval" name="interval" value="${data.get('interval', watch.interval if watch else '')}" class="wideinput" />
     </div>
 
     <div>
         <label for="twill-emails">E-mail addresses for notifications (colon-separated)</label>
-        <input id="twill-emails" name="emails" value="${data.get('emails', watch.emails if watch else '')}" />
+        <input id="twill-emails" name="emails" value="${data.get('emails', watch.emails if watch else '')}" class="wideinput"/>
     </div>
 
     <div>
