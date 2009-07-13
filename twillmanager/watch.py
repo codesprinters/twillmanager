@@ -14,7 +14,7 @@ import twill.parse
 
 from twillmanager.db import get_db_connection, close_db_connection
 from twillmanager.mail import create_mailer
-from twillmanager.async import AsyncProcess
+import twillmanager.async
 
 __all__ = ['STATUS_FAILED', 'STATUS_OK', 'STATUS_UNKNOWN', 'Watch', 'WorkerSet']
 
@@ -126,18 +126,34 @@ class Watch(object):
         c.close()
         return watches
 
-
-class Worker(AsyncProcess):
-    """ Worker - a process that monitors if given twill script executes properly"""
+class WorkerProxy(twillmanager.async.WorkerProxy):
+    """ A proxy for controlling `Worker` processes """
     def __init__(self, id, config):
+        twillmanager.async.WorkerProxy.__init__(self)
+        self.id = id
+        self.config = config
+        
+    def make_worker(self, queue):
+        return Worker(queue, self.id, self.config)
+
+    def quit(self):
+        """ Send 'quit' signal to the worker """
+        self.queue_command('quit')
+
+    def execute(self):
+        """ Send 'execute the script now' signal to the worker """
+        self.queue_command('execute')
+
+class Worker(twillmanager.async.Worker):
+    """ Worker - a process that monitors if given twill script executes properly"""
+    def __init__(self, queue, id, config):
         """ Creates a new `Worker`
             :param id: Id (database primary key) of the watch to use
             :param config: Configuration dict to be used (needed for e-mail addresses etc)
         """
-        AsyncProcess.__init__(self)
+        twillmanager.async.Worker.__init__(self, queue)
         self.id = id
         self.config = config
-        
         self.watch = None
         self.connection = None
 
@@ -150,25 +166,17 @@ class Worker(AsyncProcess):
         self.watch = Watch.load(self.id, self.connection)
         if self.watch:
             self.tick_interval = self.watch.interval
-            AsyncProcess.main(self)
+            twillmanager.async.Worker.main(self)
 
     def tick(self):
         """ Executed every self.watch.interval seconds """
-        self._execute()
+        self.execute()
 
     def quit(self):
-        """ Send 'quit' signal to the process """
-        self.queue_command('quit')
-
-    def _quit(self):
         self.running = False
 
 
     def execute(self):
-        """ Send 'execute the script now' signal to the process """
-        self.queue_command('execute')
-
-    def _execute(self):
         """ Called by `tick` and when `execute` schedules immediate script execution."""
         out = StringIO()
 
@@ -191,7 +199,6 @@ class Worker(AsyncProcess):
         if old_status != status:
             self.status_notify(old_status, status, out.getvalue())
             
-
 
     def status_notify(self, old_status, new_status, message):
         """ Sends out notifications about watch status change """
@@ -270,7 +277,7 @@ class WorkerSet(object):
         with self._lock:
             if id in self.workers:
                 return
-            worker = Worker(id, self.config)
+            worker = WorkerProxy(id, self.config)
             self.workers[id] = worker
             worker.start(True)
 

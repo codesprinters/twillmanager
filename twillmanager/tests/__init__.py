@@ -3,14 +3,12 @@
 from __future__ import absolute_import
 
 import sqlite3
-from time import sleep
 
 from mock import Mock
 import multiprocessing
-from Queue import Empty
 from nose.tools import *
 
-from twillmanager.async import AsyncProcess
+from twillmanager.async import Worker, WorkerProxy
 from twillmanager.db import create_tables
 from twillmanager.watch import Watch
 
@@ -116,77 +114,49 @@ class Test_Watch(object):
         assert_equal(w1.interval, w2.interval)
 
 
-class Test_Async(object):
+class Test_WorkerProxy(object):
     """ Tests for AsyncProcess"""
+    def test_messages_are_queued(self):
+        worker_proxy = WorkerProxy()
+        worker_proxy.queue_command('zero')
+        worker_proxy.queue_command('one',1)
+        worker_proxy.queue_command('two',1,None)
+        worker_proxy.queue_command('three','a','b','c')
+
+        calls = []
+        for i in xrange(4):
+            calls.append(worker_proxy.queue.get())
+
+
+        assert_equal(('zero',()), calls[0])
+        assert_equal(('one',(1,)), calls[1])
+        assert_equal(('two',(1,None)), calls[2])
+        assert_equal(('three',('a','b','c')), calls[3])
+
+
+class Test_Worker(object):
     def test_messages_are_executed(self):
-        def term(process):
-            process.running = False
+        def term(worker):
+            worker.running = False
 
-        ap = AsyncProcess()
-        ap._first = Mock()
-        ap._second = Mock()
-        ap._third = Mock()
-        ap._fourth = lambda: term(ap)
+        q = multiprocessing.Queue(0)
 
-        ap.queue_command('first')
-        ap.queue_command('second', 1)
-        ap.queue_command('third',1,2)
-        ap.queue_command('fourth')
+        worker = Worker(q)
+        worker.first = Mock()
+        worker.second = Mock()
+        worker.third = Mock()
+        worker.fourth = lambda: term(worker)
+
+        q.put(('first',()))
+        q.put(('second',(1,)))
+        q.put(('third',(1,2)))
+        q.put(('fourth',()))
 
         # force immediate execution (in the same process)
-        ap.main()
+        worker.main()
 
-        ap._first.assert_called_with()
-        ap._second.assert_called_with(1)
-        ap._third.assert_called_with(1,2)
-        assert not ap.running
+        worker.first.assert_called_with()
+        worker.second.assert_called_with(1)
+        worker.third.assert_called_with(1,2)
+        assert not worker.running
         
-    def test_inter_process_communication(self):
-        def term(process):
-            process.running = False
-
-        ap = AsyncProcess()
-        ap._quit = lambda: term(ap)
-
-        ap.start(True)
-        sleep(1) # give the process some time to run
-
-        assert ap.is_alive()
-
-        ap.queue_command('quit')
-
-        ap.process.join()
-        assert not ap.is_alive()
-        assert not ap.running
-
-    def test_process_ticks(self):
-        def term(process):
-            process.running = False
-        def tick():
-            q.put(123)
-
-        q = multiprocessing.Queue()
-
-        ap = AsyncProcess()
-        ap._quit = lambda: term(ap)
-        ap.tick = tick
-        ap.tick_interval = 1
-        ap.start(True)
-        sleep(6) # this should give us some ticks
-
-        ap.queue_command('quit')
-
-        ap.process.join()
-        assert not ap.is_alive()
-        assert not ap.running
-
-        received_ticks = []
-
-        while True:
-            try:
-                received_ticks.append(q.get_nowait())
-            except Empty:
-                break
-
-        # the it might be a bit off
-        assert 5 <= len(received_ticks) <= 7
