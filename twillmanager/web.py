@@ -68,7 +68,16 @@ class ApplicationRoot(object):
             try:
                 valid_dict['interval'] = int(interval)
             except ValueError:
-                errors.append(u"Invalid number")
+                errors.append(u"Invalid number (interval)")
+
+        reminder_interval = data.get('reminder_interval', '').strip()
+        if reminder_interval:
+            try:
+                valid_dict['reminder_interval'] = int(reminder_interval)
+            except ValueError:
+                errors.append(u"Invalid number (reminder interval)")
+        else:
+            valid_dict['reminder_interval'] = None
 
         script = data.get('script', None)
         if not script or script.isspace():

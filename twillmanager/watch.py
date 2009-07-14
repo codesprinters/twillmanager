@@ -27,7 +27,9 @@ class Watch(object):
     """ A simple data transfer object for describing watches (with data access methods
         for loading/storing watches into the database)
     """
-    def __init__(self, name, interval, script, emails = None, status=STATUS_UNKNOWN, time=None, last_alert=None, id=None):
+    def __init__(self, name, interval, script,
+            emails=None, status=STATUS_UNKNOWN, time=None,
+            reminder_interval=600, last_alert=None, id=None):
         """ Create a new Watch
 
             :param name: Name of the watch
@@ -37,6 +39,8 @@ class Watch(object):
                 of people who should receive failure notifications.
             :param status: Current status of the watch
             :param time: Last update time (as number of seconds since epoch - obtained by call to `time.time()`)
+            :param reminder_interval: Interval (seconds) after which reminder that the watch is still down is sent
+            :param last_alert: Time of last alert sent (as number of seconds since epoch - obtained by call to `time.time()`)
             :param id: Key in the database of the watch
         """
         self.name = name
@@ -45,8 +49,19 @@ class Watch(object):
         self.emails = emails
         self.status = status
         self.time = time
+        self.reminder_interval = reminder_interval
         self.last_alert = last_alert
         self.id = id
+
+    @classmethod
+    def construct_from_row(cls, row):
+        kwargs = dict()
+        for name in ['name', 'interval', 'script', 'emails', 'status', 'time', 'reminder_interval', 'last_alert', 'id']:
+            try:
+                kwargs[name] = row[name]
+            except IndexError:
+                pass
+        return cls(**kwargs)
 
     def save(self, connection):
         """ Save the watch into the database (using given connection) """
@@ -59,8 +74,8 @@ class Watch(object):
     def insert(self, connection):
         """ Insert the watch into the database (using given connection) """
         c = connection.cursor()
-        c.execute("INSERT INTO twills (name, interval, script, emails, status, time, last_alert) VALUES (?,?,?,?,?,?,?)",
-            (self.name, self.interval, self.script, self.emails, self.status, self.time, self.last_alert))
+        c.execute("INSERT INTO twills (name, interval, script, emails, status, time, reminder_interval, last_alert) VALUES (?,?,?,?,?,?,?,?)",
+            (self.name, self.interval, self.script, self.emails, self.status, self.time, self.reminder_interval, self.last_alert))
         self.id = c.lastrowid
         c.close()
         connection.commit()
@@ -69,8 +84,8 @@ class Watch(object):
         """ Update the watch into the database (using given connection) """
         assert self.id is not None
         c = connection.cursor()
-        c.execute("UPDATE twills SET name=?, interval=?, script=?, emails=?, status=?, time=?, last_alert=? WHERE id = ?",
-            (self.name, self.interval, self.script, self.emails, self.status, self.time, self.last_alert, self.id))
+        c.execute("UPDATE twills SET name=?, interval=?, script=?, emails=?, status=?, time=?, reminder_interval=?, last_alert=? WHERE id = ?",
+            (self.name, self.interval, self.script, self.emails, self.status, self.time, self.reminder_interval, self.last_alert, self.id))
         c.close()
         connection.commit()
 
@@ -99,9 +114,9 @@ class Watch(object):
         """ Loads the watch with given id """
         watch = None
         c = connection.cursor()
-        c.execute("SELECT name, interval, script, emails, status, time, last_alert, id FROM twills WHERE id = ?", (id,))
+        c.execute("SELECT name, interval, script, emails, status, time, reminder_interval, last_alert, id FROM twills WHERE id = ?", (id,))
         for row in c:
-            watch = cls(*row)
+            watch = cls.construct_from_row(row)
         c.close()
         return watch
 
@@ -110,9 +125,9 @@ class Watch(object):
         """ Loads the watch with given name """
         watch = None
         c = connection.cursor()
-        c.execute("SELECT name, interval, script, emails, status, time, last_alert, id FROM twills WHERE name = ?", (name,))
+        c.execute("SELECT name, interval, script, emails, status, time, reminder_interval, last_alert, id FROM twills WHERE name = ?", (name,))
         for row in c:
-            watch = cls(*row)
+            watch = cls.construct_from_row(row)
         c.close()
         return watch
 
@@ -121,11 +136,12 @@ class Watch(object):
         """ Loads all watches """
         watches = []
         c = connection.cursor()
-        c.execute("SELECT name, interval, script, emails, status, time, last_alert, id FROM twills ORDER BY name")
+        c.execute("SELECT name, interval, script, emails, status, time, reminder_interval, last_alert, id FROM twills ORDER BY name")
         for row in c:
-            watches.append(cls(*row))
+            watches.append(cls.construct_from_row(row))
         c.close()
         return watches
+    
 
 class WorkerProxy(twillmanager.async.WorkerProxy):
     """ A proxy for controlling `Worker` processes """
@@ -197,8 +213,25 @@ class Worker(twillmanager.async.Worker):
         self.watch.status = status
         self.watch.time = time()
         self.watch.update_status(self.connection)
-        if old_status != status:
+
+
+        if self.watch.last_alert is None:
+            time_since_last_alert = None
+        else:
+            time_since_last_alert = self.watch.time - self.watch.last_alert
+
+        status_has_changed = (old_status != status)
+
+        if self.watch.reminder_interval:
+            last_alert_was_long_ago = time_since_last_alert is None or time_since_last_alert > self.watch.reminder_interval
+        else:
+            last_alert_was_long_ago = False
+
+
+        if status_has_changed or last_alert_was_long_ago:
             self.status_notify(old_status, status, out.getvalue())
+            self.watch.last_alert = time()
+            self.watch.update_status(self.connection)
             
 
     def status_notify(self, old_status, new_status, message):
@@ -218,7 +251,10 @@ class Worker(twillmanager.async.Worker):
 
         sender = self.config['mail.from']
 
-        subject = "Watch %s status change %s -> %s" % (self.watch.name, old_status, new_status)
+        if old_status != new_status:
+            subject = "Watch %s status change %s -> %s" % (self.watch.name, old_status, new_status)
+        else:
+            subject = "Watch %s status is still %s" % (self.watch.name, new_status)
 
         body = "Script:\n%s\n\nResult:\n%s" % (self.watch.script, message)
 

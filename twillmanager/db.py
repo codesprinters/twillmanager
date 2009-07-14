@@ -10,7 +10,9 @@ _thread_local = local()
 __all__ = ['get_db_connection', 'close_db_connection' ,'create_db_connection', 'create_tables']
 
 def create_db_connection(config):
-    return sqlite3.connect(config['sqlite.file'])
+    con = sqlite3.connect(config['sqlite.file'])
+    con.row_factory = sqlite3.Row
+    return con
 
 def get_db_connection(config):
     if not hasattr(_thread_local, 'connection'):
@@ -35,5 +37,6 @@ def create_tables(connection):
             emails TEXT,
             status VARCHAR(100) NOT NULL,
             time INTEGER,
+            reminder_interval INTEGER,
             last_alert INTEGER)""")
     connection.commit()

@@ -40,8 +40,12 @@
     </div>
 
     <div>
-        <label for="twill-interval">Interval (in seconds)</label>
+        <label for="twill-interval">Interval (in seconds) - time between runs of the script</label>
         <input id="twill-interval" name="interval" value="${data.get('interval', watch.interval if watch else '')}" class="wideinput" />
+    </div>
+    <div>
+        <label for="twill-reminder-interval">Reminder interval (in seconds) - time between e-mails reminding that the watch keeps failing</label>
+        <input id="twill-reminder-interval" name="reminder_interval" value="${data.get('reminder_interval', watch.reminder_interval if watch else '600') or ''}" class="wideinput" />
     </div>
 
     <div>
@@ -53,7 +57,6 @@
         <label for="twill-script">Script</label>
         <textarea id="twill-script" name="script" rows="15">${data.get('script', watch.script if watch else '')}</textarea>
     </div>
-
 
     <div class="button-container">
         <input type="submit" />

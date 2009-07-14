@@ -2,19 +2,17 @@
 
 from __future__ import absolute_import
 
-import sqlite3
-
 from mock import Mock
 import multiprocessing
 from nose.tools import *
 
 from twillmanager.async import Worker, WorkerProxy
-from twillmanager.db import create_tables
+from twillmanager.db import create_tables, create_db_connection
 from twillmanager.watch import Watch
 
 class Test_Watch(object):
     def setUp(self):
-        self.connection = sqlite3.connect(':memory:')
+        self.connection = create_db_connection({'sqlite.file':':memory:'})
         create_tables(self.connection)
 
     def test_saving(self):
