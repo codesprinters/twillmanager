@@ -34,5 +34,6 @@ def create_tables(connection):
             script TEXT,
             emails TEXT,
             status VARCHAR(100) NOT NULL,
-            time INTEGER)""")
+            time INTEGER,
+            last_alert INTEGER)""")
     connection.commit()

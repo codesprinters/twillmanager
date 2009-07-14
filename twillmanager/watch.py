@@ -27,7 +27,7 @@ class Watch(object):
     """ A simple data transfer object for describing watches (with data access methods
         for loading/storing watches into the database)
     """
-    def __init__(self, name, interval, script, emails = None, status=STATUS_UNKNOWN, time=None, id=None):
+    def __init__(self, name, interval, script, emails = None, status=STATUS_UNKNOWN, time=None, last_alert=None, id=None):
         """ Create a new Watch
 
             :param name: Name of the watch
@@ -45,6 +45,7 @@ class Watch(object):
         self.emails = emails
         self.status = status
         self.time = time
+        self.last_alert = last_alert
         self.id = id
 
     def save(self, connection):
@@ -58,8 +59,8 @@ class Watch(object):
     def insert(self, connection):
         """ Insert the watch into the database (using given connection) """
         c = connection.cursor()
-        c.execute("INSERT INTO twills (name, interval, script, emails, status, time) VALUES (?,?,?,?,?,?)",
-            (self.name, self.interval, self.script, self.emails, self.status, self.time))
+        c.execute("INSERT INTO twills (name, interval, script, emails, status, time, last_alert) VALUES (?,?,?,?,?,?,?)",
+            (self.name, self.interval, self.script, self.emails, self.status, self.time, self.last_alert))
         self.id = c.lastrowid
         c.close()
         connection.commit()
@@ -68,8 +69,8 @@ class Watch(object):
         """ Update the watch into the database (using given connection) """
         assert self.id is not None
         c = connection.cursor()
-        c.execute("UPDATE twills SET name=?, interval=?, script=?, emails=?, status=?, time=? WHERE id = ?",
-            (self.name, self.interval, self.script, self.emails, self.status, self.time, self.id))
+        c.execute("UPDATE twills SET name=?, interval=?, script=?, emails=?, status=?, time=?, last_alert=? WHERE id = ?",
+            (self.name, self.interval, self.script, self.emails, self.status, self.time, self.last_alert, self.id))
         c.close()
         connection.commit()
 
@@ -81,8 +82,8 @@ class Watch(object):
         """
         assert self.id is not None
         c = connection.cursor()
-        c.execute("UPDATE twills SET status=?, time=? WHERE id = ?",
-            (self.status, self.time, self.id))
+        c.execute("UPDATE twills SET status=?, time=?, last_alert=? WHERE id = ?",
+            (self.status, self.time, self.last_alert, self.id))
         c.close()
         connection.commit()
 
@@ -98,7 +99,7 @@ class Watch(object):
         """ Loads the watch with given id """
         watch = None
         c = connection.cursor()
-        c.execute("SELECT name, interval, script, emails, status, time, id FROM twills WHERE id = ?", (id,))
+        c.execute("SELECT name, interval, script, emails, status, time, last_alert, id FROM twills WHERE id = ?", (id,))
         for row in c:
             watch = cls(*row)
         c.close()
@@ -109,7 +110,7 @@ class Watch(object):
         """ Loads the watch with given name """
         watch = None
         c = connection.cursor()
-        c.execute("SELECT name, interval, script, emails, status, time, id FROM twills WHERE name = ?", (name,))
+        c.execute("SELECT name, interval, script, emails, status, time, last_alert, id FROM twills WHERE name = ?", (name,))
         for row in c:
             watch = cls(*row)
         c.close()
@@ -120,7 +121,7 @@ class Watch(object):
         """ Loads all watches """
         watches = []
         c = connection.cursor()
-        c.execute("SELECT name, interval, script, emails, status, time,id FROM twills ORDER BY name")
+        c.execute("SELECT name, interval, script, emails, status, time, last_alert, id FROM twills ORDER BY name")
         for row in c:
             watches.append(cls(*row))
         c.close()
