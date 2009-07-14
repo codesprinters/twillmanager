@@ -228,7 +228,7 @@ class Worker(twillmanager.async.Worker):
             last_alert_was_long_ago = False
 
 
-        if status_has_changed or last_alert_was_long_ago:
+        if status_has_changed or (last_alert_was_long_ago and status == STATUS_FAILED):
             self.status_notify(old_status, status, out.getvalue())
             self.watch.last_alert = time()
             self.watch.update_status(self.connection)

@@ -38,7 +38,7 @@ def start():
         cherrypy.config.update({'log.screen': False})
         daemonize()
 
-    app = twillmanager.web.ApplicationRoot()
+    app = twillmanager.web.DashboardController()
     cp_app = cherrypy.tree.mount(app, '/', config_file)
     cp_app.config.update(local_config)
     app.configure(cp_app.config['twillmanager'])

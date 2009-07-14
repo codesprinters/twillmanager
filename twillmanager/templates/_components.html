@@ -3,19 +3,19 @@
 <%! from urllib import quote %>
 
 <%def name="restart_worker_link(watch, link_text='Restart worker')">
-    <a href="${cherrypy.url('/restart_worker?id=' + quote(str(watch.id)))}">${link_text}</a>
+    <a href="${cherrypy.url('/' + quote(str(watch.id)) + '/restart')}">${link_text}</a>
 </%def>
 <%def name="check_worker_link(watch, link_text='Check now')">
-    <a href="${cherrypy.url('/check_now?id=' + quote(str(watch.id)))}">${link_text}</a>
+    <a href="${cherrypy.url('/' + quote(str(watch.id)) + '/check_now')}">${link_text}</a>
 </%def>
 <%def name="stop_worker_link(watch, link_text='Stop worker')">
-    <a href="${cherrypy.url('/stop_worker?id=' + quote(str(watch.id)))}">${link_text}</a>
+    <a href="${cherrypy.url('/' + quote(str(watch.id)) + '/stop')}">${link_text}</a>
 </%def>
 <%def name="delete_watch_link(watch, link_text='Delete')">
-    <a href="${cherrypy.url('/delete?id=' + quote(str(watch.id)))}">${link_text}</a>
+    <a href="${cherrypy.url('/' + quote(str(watch.id)) + '/delete')}">${link_text}</a>
 </%def>
 <%def name="edit_watch_link(watch, link_text='Edit')">
-    <a href="${cherrypy.url('/edit?id=' + str(str(watch.id)))}">${link_text}</a>
+    <a href="${cherrypy.url('/' + quote(str(watch.id)) + '/edit')}">${link_text}</a>
 </%def>
 <%def name="watch_div_class(watch)">\
 % if not worker_set.is_alive(watch.id):

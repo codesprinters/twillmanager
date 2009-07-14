@@ -5,6 +5,6 @@
 
 <h1>Editing: <em>${watch.name}</em></h1>
 
-<form action="${cherrypy.url('/edit?id=' + str(watch.id))}" method="post">
+<form action="${cherrypy.url('/' + str(watch.id) + '/edit')}" method="post">
     ${_components.watch_form(data, watch, errors)}
 </form>
