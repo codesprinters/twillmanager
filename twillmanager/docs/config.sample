@@ -3,6 +3,10 @@ environment: 'production'
 server.socket_host: '0.0.0.0'
 server.socket_port: 8080
 
+; log files for web server. Must not be the same file as the one used by workers
+log.access_file: /tmp/twillmanager.access.log
+log.error_file: /tmp/twillmanager.error.log
+
 [twillmanager]
 sqlite.file: "twillmanager.sqlite"
 
@@ -14,3 +18,7 @@ mail.smtp.port: 25
 mail.smtp.usetls: False
 mail.smtp.login: None
 mail.smtp.password: None
+
+
+; log files for workers. Must not be the same file as those used by web server.
+log.worker_file: None

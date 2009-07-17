@@ -41,6 +41,7 @@ def start():
     app = twillmanager.web.DashboardController()
     cp_app = cherrypy.tree.mount(app, '/', config_file)
     cp_app.config.update(local_config)
+    twillmanager.log.configure(cp_app.config['twillmanager'])
     app.configure(cp_app.config['twillmanager'])
 
     cherrypy.engine.start()

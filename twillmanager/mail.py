@@ -51,7 +51,7 @@ class SendmailMailer(Mailer):
 def create_mailer(config):
     mode = config['mail.mode']
 
-    if mode == 'smtplib':
+    if mode == 'smtplib' or mode == 'smtp':
         return SMTPMailer(config)
     elif mode == 'sendmail':
         return SendmailMailer(config)

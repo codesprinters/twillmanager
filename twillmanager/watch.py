@@ -14,6 +14,7 @@ import twill.parse
 
 from twillmanager.db import get_db_connection, close_db_connection
 from twillmanager.mail import create_mailer
+from twillmanager.log import logger
 import twillmanager.async
 
 __all__ = ['STATUS_FAILED', 'STATUS_OK', 'STATUS_UNKNOWN', 'Watch', 'WorkerSet']
@@ -181,9 +182,14 @@ class Worker(twillmanager.async.Worker):
         close_db_connection()
         self.connection = get_db_connection(self.config)
         self.watch = Watch.load(self.id, self.connection)
+
+
         if self.watch:
+            logger.info("Starting worker for watch `%s` (id: %s)" % (self.watch.name, self.id))
             self.tick_interval = self.watch.interval
             twillmanager.async.Worker.main(self)
+        else:
+            logger.warn("Failed to start worker for watch (id: %s) - no such watch" % self.id)
 
     def tick(self):
         """ Executed every self.watch.interval seconds """
@@ -214,6 +220,12 @@ class Worker(twillmanager.async.Worker):
         self.watch.time = time()
         self.watch.update_status(self.connection)
 
+        msg = "Watch status for watch `%s` (id: %s): %s" % (self.watch.name, self.id, status)
+
+        if status != STATUS_OK:
+            logger.warn(msg)
+        else:
+            logger.info(msg)
 
         if self.watch.last_alert is None:
             time_since_last_alert = None

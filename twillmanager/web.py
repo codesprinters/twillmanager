@@ -5,9 +5,11 @@ from __future__ import absolute_import
 import cherrypy
 from mako.lookup import TemplateLookup
 import os.path
+import simplejson
 
 from twillmanager.db import get_db_connection, create_tables
 from twillmanager.watch import WorkerSet, Watch
+import twillmanager.log
 
 def validate_twill_form(connection, data, watch=None):
     """ Checks if data (dictionary) contains valid watch definition.
@@ -136,6 +138,21 @@ class WatchController(Controller):
     @cherrypy.expose
     def index(self):
         raise cherrypy.HTTPRedirect(cherrypy.url('/'), status=303)
+
+    @cherrypy.expose
+    def status(self):
+        watch = Watch.load(self.id, get_db_connection(self.config))
+        if not watch:
+            raise cherrypy.NotFound()
+
+        data = {}
+        data['id'] = watch.id
+        data['name'] = watch.name
+        data['status'] = watch.status
+        data['alive'] = self.worker_set.is_alive(self.id)
+
+        cherrypy.response.headers['Content-Type'] = "application/json"
+        return simplejson.dumps(data)
 
     @cherrypy.expose
     def restart(self):
