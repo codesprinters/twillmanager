@@ -96,6 +96,17 @@ class DashboardController(Controller):
         return self.render('index.html', watches=watches, worker_set=self.worker_set)
 
     @cherrypy.expose
+    def status(self):
+        watches = Watch.load_all(get_db_connection(self.config))
+
+        data = {}
+        for watch in watches:
+            data[str(watch.id)] = watch.dict(self.worker_set.get(watch.id))
+
+        cherrypy.response.headers['Content-Type'] = "application/json"
+        return simplejson.dumps(data)
+
+    @cherrypy.expose
     def new(self, **kwargs):
         watch = None
         if cherrypy.request.method == 'POST':
@@ -145,11 +156,7 @@ class WatchController(Controller):
         if not watch:
             raise cherrypy.NotFound()
 
-        data = {}
-        data['id'] = watch.id
-        data['name'] = watch.name
-        data['status'] = watch.status
-        data['alive'] = self.worker_set.is_alive(self.id)
+        data = watch.dict(self.worker_set.get(self.id))
 
         cherrypy.response.headers['Content-Type'] = "application/json"
         return simplejson.dumps(data)

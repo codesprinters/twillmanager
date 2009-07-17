@@ -17,11 +17,11 @@
 % else:
     % for w in watches:
         
-        <div class="watch ${_components.watch_div_class(w)}">
+        <div class="watch ${_components.watch_div_class(w)}" id="watch-${w.id}">
             % if worker_set.is_alive(w.id):
-                <h2>${w.name}</h2>
+                <h2 class="data-title">${w.name}</h2>
             % else:
-                <h2 class="watch-inactive-header">${w.name} - worker disabled</h2>
+                <h2 class="data-title watch-inactive-header">${w.name} - worker disabled</h2>
             % endif 
             <div class="horizontal-menu">
                 ${_components.restart_worker_link(w)}
@@ -34,13 +34,13 @@
             <table class="watch-parameters">
                 <tr>
                     <th>Status</th>
-                    <td><strong>${w.status}</strong></td>
+                    <td><strong class="data-status">${w.status}</strong></td>
                 </tr>
                 <tr>
                     <th>Last check</th>
-                    <td>
+                    <td class="data-last-check">
                         % if w.time:
-                            ${time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(w.time))} UTC
+                            ${w.formatted_time()}
                         % else:
                             UNKNOWN
                         % endif
@@ -52,3 +52,43 @@
     % endfor
 % endif
 
+<script>
+    $(document).ready(function(){
+        var viewUpdater = function(data) {
+            $('.watch').each(function(){
+                var element = $(this);
+                var id = element.attr('id').substr("watch-".length);
+                var watchData = data[id];
+                if (watchData) {
+                    var titleElement = element.find('.data-title')
+                    var title = watchData['name'];
+                    var statusElement = element.find('.data-status')
+                    var timeElement = element.find('.data-last-check')
+                    
+                    if (watchData['alive']) {
+                        titleElement.removeClass('watch-inactive-header');
+                    } else {
+                        titleElement.addClass('watch-inactive-header');
+                        title += " - worker disabled";
+                    }
+                    titleElement.text(title);
+                    
+                    statusElement.text(watchData['status']);
+
+                    if (watchData['time']) {
+                        timeElement.text(watchData['time'])
+                    } else {
+                        timeElement.text("UNKNOWN")
+                    }
+                }
+            });
+
+            setTimeout(updater, 5000);
+        }
+
+        var updater = function() {
+            $.ajax({'url': "${cherrypy.url('/status')}", 'dataType': 'json', 'success': viewUpdater});
+        }
+        setTimeout(updater, 5000);
+    });
+</script>

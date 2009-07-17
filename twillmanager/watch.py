@@ -5,7 +5,7 @@ from __future__ import with_statement
 
 from StringIO import StringIO
 from threading import Thread, RLock, Event as threadEvent
-from time import time
+import time
 from multiprocessing import active_children
 
 import twill
@@ -53,6 +53,22 @@ class Watch(object):
         self.reminder_interval = reminder_interval
         self.last_alert = last_alert
         self.id = id
+
+    def formatted_time(self):
+        if self.time:
+            return time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime(self.time));
+        else:
+            return None
+
+    def dict(self, worker):
+        """ Dictionary with watch data - including worker status if one is given """
+        data = {}
+        data['id'] = self.id
+        data['name'] = self.name
+        data['status'] = self.status
+        data['alive'] = worker.is_alive() if worker else False
+        data['time'] = self.formatted_time();
+        return data
 
     @classmethod
     def construct_from_row(cls, row):
@@ -217,10 +233,10 @@ class Worker(twillmanager.async.Worker):
 
         old_status = self.watch.status
         self.watch.status = status
-        self.watch.time = time()
+        self.watch.time = time.time()
         self.watch.update_status(self.connection)
 
-        msg = "Watch status for watch `%s` (id: %s): %s" % (self.watch.name, self.id, status)
+        msg = "Status for watch `%s` (id: %s): %s" % (self.watch.name, self.id, status)
 
         if status != STATUS_OK:
             logger.warn(msg)
@@ -241,8 +257,9 @@ class Worker(twillmanager.async.Worker):
 
 
         if status_has_changed or (last_alert_was_long_ago and status == STATUS_FAILED):
+            logger.info("Sending notification for watch `%s` (id: %s)" % (self.watch.name, self.id))
             self.status_notify(old_status, status, out.getvalue())
-            self.watch.last_alert = time()
+            self.watch.last_alert = time.time()
             self.watch.update_status(self.connection)
             
 
@@ -293,6 +310,8 @@ class WorkerSet(object):
         self.checking_thread.daemon = True
         self.checking_thread.start()
 
+    def get(self, id):
+        return self.workers.get(id, None)
 
     def finish(self):
         """ Call this to clean up when the application is shut down """
