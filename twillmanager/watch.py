@@ -28,6 +28,18 @@ class Watch(object):
     """ A simple data transfer object for describing watches (with data access methods
         for loading/storing watches into the database)
     """
+    # Rows in database table
+    COLUMNS = ['id',
+               'name',
+               'interval',
+               'script',
+               'emails',
+               'status',
+               'time',
+               'reminder_interval',
+               'last_alert',
+              ]
+
     def __init__(self, name, interval, script,
             emails=None, status=STATUS_UNKNOWN, time=None,
             reminder_interval=600, last_alert=None, id=None):
@@ -71,9 +83,13 @@ class Watch(object):
         return data
 
     @classmethod
+    def columns(cls):
+        return ','.join(cls.COLUMNS)
+
+    @classmethod
     def construct_from_row(cls, row):
         kwargs = dict()
-        for name in ['name', 'interval', 'script', 'emails', 'status', 'time', 'reminder_interval', 'last_alert', 'id']:
+        for name in cls.COLUMNS:
             try:
                 kwargs[name] = row[name]
             except IndexError:
@@ -131,7 +147,7 @@ class Watch(object):
         """ Loads the watch with given id """
         watch = None
         c = connection.cursor()
-        c.execute("SELECT name, interval, script, emails, status, time, reminder_interval, last_alert, id FROM twills WHERE id = ?", (id,))
+        c.execute("SELECT " + cls.columns() + " FROM twills WHERE id = ?", (id,))
         for row in c:
             watch = cls.construct_from_row(row)
         c.close()
@@ -142,7 +158,7 @@ class Watch(object):
         """ Loads the watch with given name """
         watch = None
         c = connection.cursor()
-        c.execute("SELECT name, interval, script, emails, status, time, reminder_interval, last_alert, id FROM twills WHERE name = ?", (name,))
+        c.execute("SELECT " + cls.columns() + " FROM twills WHERE name = ?", (name,))
         for row in c:
             watch = cls.construct_from_row(row)
         c.close()
@@ -153,7 +169,7 @@ class Watch(object):
         """ Loads all watches """
         watches = []
         c = connection.cursor()
-        c.execute("SELECT name, interval, script, emails, status, time, reminder_interval, last_alert, id FROM twills ORDER BY name")
+        c.execute("SELECT " + cls.columns() + " FROM twills ORDER BY name")
         for row in c:
             watches.append(cls.construct_from_row(row))
         c.close()
