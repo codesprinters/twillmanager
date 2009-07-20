@@ -54,7 +54,13 @@
 
 <script>
     $(document).ready(function(){
+        var registerUpdater = function() {
+            setTimeout(updater, 5000);
+        }
+
         var viewUpdater = function(data) {
+            registerUpdater();
+            
             $('.watch').each(function(){
                 var element = $(this);
                 var id = element.attr('id').substr("watch-".length);
@@ -82,13 +88,12 @@
                     }
                 }
             });
-
-            setTimeout(updater, 5000);
         }
 
         var updater = function() {
-            $.ajax({'url': "${cherrypy.url('/status')}", 'dataType': 'json', 'success': viewUpdater});
+            $.ajax({'url': "${cherrypy.url('/status')}", 'dataType': 'json', 'success': viewUpdater, 'error': registerUpdater});
         }
-        setTimeout(updater, 5000);
+
+        registerUpdater();
     });
 </script>

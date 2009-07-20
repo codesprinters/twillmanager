@@ -9,7 +9,6 @@ import simplejson
 
 from twillmanager.db import get_db_connection, create_tables
 from twillmanager.watch import WorkerSet, Watch
-import twillmanager.log
 
 def validate_twill_form(connection, data, watch=None):
     """ Checks if data (dictionary) contains valid watch definition.
