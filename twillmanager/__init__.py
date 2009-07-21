@@ -44,6 +44,11 @@ def start():
     twillmanager.log.configure(cp_app.config['twillmanager'])
     app.configure(cp_app.config['twillmanager'])
 
+    if hasattr(cherrypy.engine, 'signal_handler'):
+        cherrypy.engine.signal_handler.subscribe()
+    elif hasattr(cherrypy.engine, 'console_control_handler'):
+        cherrypy.engine.console_control_handler.subscribe()
+
     cherrypy.engine.start()
     cherrypy.engine.block()
     app.finish()
