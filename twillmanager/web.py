@@ -100,7 +100,8 @@ class DashboardController(Controller):
 
         data = {}
         for watch in watches:
-            data[str(watch.id)] = watch.dict(self.worker_set.get(watch.id))
+            data[str(watch.id)] = watch.dict()
+            data[str(watch.id)].update(self.worker_set.worker_status_dict(watch.id))
 
         cherrypy.response.headers['Content-Type'] = "application/json"
         return simplejson.dumps(data)
@@ -155,7 +156,8 @@ class WatchController(Controller):
         if not watch:
             raise cherrypy.NotFound()
 
-        data = watch.dict(self.worker_set.get(self.id))
+        data = watch.dict()
+        data.update(self.worker_set.worker_status_dict(watch.id))
 
         cherrypy.response.headers['Content-Type'] = "application/json"
         return simplejson.dumps(data)

@@ -19,6 +19,9 @@ class WorkerProxy(object):
         """ Whether the worker process is alive """
         return self.process is not None and self.process.is_alive()
 
+    def already_started(self):
+        return self.process
+
     def queue_command(self, name, *arguments):
         """ Queue a command to be executed by the worker
             
@@ -32,8 +35,7 @@ class WorkerProxy(object):
 
             :param daemon: Whether to make the process daemonic
         """
-        if self.process:
-            return
+        assert not self.already_started(), "The worker is already started"
 
         worker = self.make_worker(self.queue)
 

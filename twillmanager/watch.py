@@ -3,10 +3,11 @@
 from __future__ import absolute_import
 from __future__ import with_statement
 
+import multiprocessing
 from StringIO import StringIO
-from threading import Thread, RLock, Event as threadEvent
+import Queue
+import threading
 import time
-from multiprocessing import active_children
 
 import twill
 import twill.commands
@@ -72,13 +73,12 @@ class Watch(object):
         else:
             return None
 
-    def dict(self, worker):
-        """ Dictionary with watch data - including worker status if one is given """
+    def dict(self):
+        """ Watch status data as dictionary (not a complete watch) """
         data = {}
         data['id'] = self.id
         data['name'] = self.name
         data['status'] = self.status
-        data['alive'] = worker.is_alive() if worker else False
         data['time'] = self.formatted_time();
         return data
 
@@ -182,9 +182,22 @@ class WorkerProxy(twillmanager.async.WorkerProxy):
         twillmanager.async.WorkerProxy.__init__(self)
         self.id = id
         self.config = config
-        
+        self.on_twill_start = None # executed when twill check starts
+        self.on_twill_end = None # executed when twill check starts
+
+    def set_twill_callbacks(self, on_start, on_end):
+        """ Sets callbacks to be executed when twill check starts and ends.
+            Must be set before starting the worker
+
+            :param on_start: Executed when twill starts. A zero-argument callable
+            :param on_start: Executed when twill end. A zero-argument callable
+        """
+        assert not self.already_started(), "Can't call set_twill_callbacks on worker that is already started"
+        self.on_twill_start = on_start
+        self.on_twill_end = on_end
+
     def make_worker(self, queue):
-        return Worker(queue, self.id, self.config)
+        return Worker(queue, self.id, self.config, self.on_twill_start, self.on_twill_end)
 
     def quit(self):
         """ Send 'quit' signal to the worker """
@@ -196,16 +209,23 @@ class WorkerProxy(twillmanager.async.WorkerProxy):
 
 class Worker(twillmanager.async.Worker):
     """ Worker - a process that monitors if given twill script executes properly"""
-    def __init__(self, queue, id, config):
+    def __init__(self, queue, id, config, on_start=None, on_end=None):
         """ Creates a new `Worker`
+            :param queue: The command queue, as needed by `twillmanager.async.Worker`
             :param id: Id (database primary key) of the watch to use
             :param config: Configuration dict to be used (needed for e-mail addresses etc)
+            :param on_start: Callable (zero-argument) to be invoked when
+                twill script starts execution
+            :param on_end: Callable (zero-argument) to be invoked when twill
+                script finishes execution (disregarding status)
         """
         twillmanager.async.Worker.__init__(self, queue)
         self.id = id
         self.config = config
         self.watch = None
         self.connection = None
+        self.on_start = on_start
+        self.on_end = on_end
 
     def main(self):
         """ Process main function """
@@ -233,8 +253,54 @@ class Worker(twillmanager.async.Worker):
 
     def execute(self):
         """ Called by `tick` and when `execute` schedules immediate script execution."""
-        out = StringIO()
+        try: # large try block to ensure on_end is called
+            if self.on_start:
+                self.on_start()
 
+            new_status, output = self.execute_script()
+
+            old_status = self.watch.status
+            self.watch.status = new_status
+            self.watch.time = time.time()
+            self.watch.update_status(self.connection)
+
+            msg = "Status for watch `%s` (id: %s): %s" % (self.watch.name, self.id, new_status)
+
+            if new_status != STATUS_OK:
+                logger.warn(msg)
+            else:
+                logger.info(msg)
+
+            # when was last e-mail alert sent
+            if self.watch.last_alert is None:
+                time_since_last_alert = None
+            else:
+                time_since_last_alert = self.watch.time - self.watch.last_alert
+
+            status_has_changed = (old_status != new_status)
+
+            # whether last alert was sent long ago enough to send a failure reminder
+            # (normally e-mails are sent only on change, but a reminder is sent
+            # if the watch keeps failing)
+            if self.watch.reminder_interval:
+                last_alert_was_long_ago = time_since_last_alert is None or time_since_last_alert > self.watch.reminder_interval
+            else:
+                last_alert_was_long_ago = False
+
+
+            if status_has_changed or (last_alert_was_long_ago and new_status == STATUS_FAILED):
+                logger.info("Sending notification for watch `%s` (id: %s)" % (self.watch.name, self.id))
+                self.status_notify(old_status, new_status, out.getvalue())
+                self.watch.last_alert = time.time()
+                self.watch.update_status(self.connection)
+        finally:
+            if self.on_end:
+                self.on_end()
+
+    def execute_script(self):
+        """ Executes twill script. Returns a tuple status, output """
+        out = StringIO()
+        # execute the twill, catching any exceptions
         try:
             twill.set_errout(out)
             twill.set_output(out)
@@ -245,39 +311,7 @@ class Worker(twillmanager.async.Worker):
         finally:
             twill.commands.reset_error()
             twill.commands.reset_output()
-
-
-        old_status = self.watch.status
-        self.watch.status = status
-        self.watch.time = time.time()
-        self.watch.update_status(self.connection)
-
-        msg = "Status for watch `%s` (id: %s): %s" % (self.watch.name, self.id, status)
-
-        if status != STATUS_OK:
-            logger.warn(msg)
-        else:
-            logger.info(msg)
-
-        if self.watch.last_alert is None:
-            time_since_last_alert = None
-        else:
-            time_since_last_alert = self.watch.time - self.watch.last_alert
-
-        status_has_changed = (old_status != status)
-
-        if self.watch.reminder_interval:
-            last_alert_was_long_ago = time_since_last_alert is None or time_since_last_alert > self.watch.reminder_interval
-        else:
-            last_alert_was_long_ago = False
-
-
-        if status_has_changed or (last_alert_was_long_ago and status == STATUS_FAILED):
-            logger.info("Sending notification for watch `%s` (id: %s)" % (self.watch.name, self.id))
-            self.status_notify(old_status, status, out.getvalue())
-            self.watch.last_alert = time.time()
-            self.watch.update_status(self.connection)
-            
+        return status, out.getvalue()
 
     def status_notify(self, old_status, new_status, message):
         """ Sends out notifications about watch status change """
@@ -315,29 +349,40 @@ class WorkerSet(object):
             :param config: Configuration dict to be passed to spawned workers
         """
         # synchronization between threads (WorkerSet is used from CherryPy)
-        self._lock = RLock()
+        self._lock = threading.RLock()
         self.workers = {}
+        self.now_building = {}
         self.config = config
 
         # thread that checks for workers that died unexpectedly
-        # and it's control event (to notify that thread it is no longer needed)
-        self.checking_thread_control_event = threadEvent()
-        self.checking_thread = Thread(target=self.check_for_dead_workers)
-        self.checking_thread.daemon = True
-        self.checking_thread.start()
+        # and listens to their status update messages
+        # only tuples (command, argument) should be put into that queue.
+        self.manager_thread_queue = multiprocessing.Queue(0)
+        self.manager_thread = threading.Thread(target=self.manager_thread_main)
+        self.manager_thread.daemon = True
+        self.manager_thread.start()
+
+    def worker_status_dict(self, id):
+        with self._lock:
+            return {'alive': self.is_alive(id), 'building': self.is_building(id)}
 
     def get(self, id):
         return self.workers.get(id, None)
 
     def finish(self):
         """ Call this to clean up when the application is shut down """
-        self.checking_thread_control_event.set()
-        self.checking_thread.join()
+        self.manager_thread_queue.put(('quit', None))
+        self.manager_thread.join()
 
     def is_alive(self, id):
         """ Check if worker with given id is alive """
         with self._lock:
             return id in self.workers and self.workers[id].is_alive()
+
+    def is_building(self, id):
+        """ Check if worker with given id is currently building"""
+        with self._lock:
+            return self.now_building.get(id, False)
 
     def check_now(self, id):
         """ Tell the worker with given id to check immediately.
@@ -345,6 +390,7 @@ class WorkerSet(object):
         """
         with self._lock:
             self.restart(id)
+            self.now_building[id] = True
             self.workers[id].execute()
 
     def restart(self, id):
@@ -361,8 +407,18 @@ class WorkerSet(object):
         with self._lock:
             if id in self.workers:
                 return
+
+            def on_start():
+                self.manager_thread_queue.put(('start', id))
+
+            def on_end():
+                self.manager_thread_queue.put(('end', id))
+
             worker = WorkerProxy(id, self.config)
+            worker.set_twill_callbacks(on_start, on_end)
+            
             self.workers[id] = worker
+            self.now_building[id] = False
             worker.start(True)
 
     def remove(self, id):
@@ -375,21 +431,35 @@ class WorkerSet(object):
                 worker = self.workers[id]
                 worker.quit()
                 del self.workers[id]
+                del self.now_building[id]
                 if worker.process:
                     worker.process.join()
 
-    def check_for_dead_workers(self):
-        """ Checks for workers that are dead but shouldn't and restarts them.
-
-            This is main method of ``self.checking_thread``,
-            so it loops indefinitely.
+    def manager_thread_main(self):
+        """ Checks for workers that died unexpectedly and listens to their
+            status update messages.
         """
         while True:
-            self.checking_thread_control_event.wait(60)
-            if self.checking_thread_control_event.isSet():
-                break
+            # wait up to 60 seconds
+            try:
+                command, argument = self.manager_thread_queue.get(True, 60)
+
+                if command == 'quit':
+                    break
+                elif command == 'start':
+                    with self._lock:
+                        self.now_building[argument] = True
+                elif command == 'end':
+                    with self._lock:
+                        self.now_building[argument] = False
+                else:
+                    logger.warn("Unknown command to manager thread: %s" % command)
+
+            except Queue.Empty:
+                pass
+
             # this one is to remove zombie processes
-            active_children()
+            multiprocessing.active_children()
 
             with self._lock:
                 ids_to_restart = []

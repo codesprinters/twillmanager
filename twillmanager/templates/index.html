@@ -22,13 +22,21 @@
                 <h2 class="data-title">${w.name}</h2>
             % else:
                 <h2 class="data-title watch-inactive-header">${w.name} - worker disabled</h2>
-            % endif 
+            % endif
+            
+
             <div class="horizontal-menu">
                 ${_components.restart_worker_link(w)}
                 ${_components.stop_worker_link(w)}
                 ${_components.check_worker_link(w)}
                 ${_components.delete_watch_link(w)}
                 ${_components.edit_watch_link(w)}
+                
+                % if worker_set.is_building(w.id):
+                    <span class="data-now-building">Now building</span>
+                % else:
+                    <span class="data-now-building"></span>
+                % endif
                 <br class="clear" />
             </div>
             <table class="watch-parameters">
@@ -70,6 +78,7 @@
                     var title = watchData['name'];
                     var statusElement = element.find('.data-status')
                     var timeElement = element.find('.data-last-check')
+                    var buildingElement = element.find('.data-now-building')
                     
                     if (watchData['alive']) {
                         titleElement.removeClass('watch-inactive-header');
@@ -82,9 +91,16 @@
                     statusElement.text(watchData['status']);
 
                     if (watchData['time']) {
-                        timeElement.text(watchData['time'])
+                        timeElement.text(watchData['time']);
                     } else {
-                        timeElement.text("UNKNOWN")
+                        timeElement.text("UNKNOWN");
+                    }
+
+                    if (watchData['building']) {
+                        /* FIXME: consider removing here */
+                        buildingElement.text("Now building").show();
+                    } else {
+                        buildingElement.empty().hide();
                     }
                 }
             });
