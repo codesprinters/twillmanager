@@ -60,7 +60,7 @@ class TwillBrowser(object):
         self.cj = cj
 
         # Ask for MIME type 'text/html' by preference.
-        self._browser.addheaders = [("Accept", "text/html; */*")]
+        self._browser.addheaders = [("Accept", "text/html, */*")]
 
         # ignore robots.txt
         self._browser.set_handle_robots(None)

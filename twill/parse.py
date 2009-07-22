@@ -212,7 +212,6 @@ def _execute_script(inp, **kw):
                 continue
 
             cmdinfo = "%s:%d" % (sourceinfo, n,)
-            print 'AT LINE:', cmdinfo
 
             cmd, args = parse_command(line, globals_dict, locals_dict)
             if cmd is None:
