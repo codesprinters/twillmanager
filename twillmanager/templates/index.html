@@ -74,20 +74,27 @@
                 var id = element.attr('id').substr("watch-".length);
                 var watchData = data[id];
                 if (watchData) {
-                    var titleElement = element.find('.data-title')
+                    var titleElement = element.find('.data-title');
                     var title = watchData['name'];
-                    var statusElement = element.find('.data-status')
-                    var timeElement = element.find('.data-last-check')
-                    var buildingElement = element.find('.data-now-building')
-                    
+                    var statusElement = element.find('.data-status');
+                    var timeElement = element.find('.data-last-check');
+                    var buildingElement = element.find('.data-now-building');
+
+                    var statusClasses = ['watch-status-ok', 'watch-status-unknown', 'watch-status-failed'];
+                    var k = 0;
+
+                    for (k in statusClasses) {
+                        element.removeClass(statusClasses[k]);
+                    }
                     if (watchData['alive']) {
                         titleElement.removeClass('watch-inactive-header');
+                        element.addClass('watch-status-' + watchData['status']);
                     } else {
                         titleElement.addClass('watch-inactive-header');
                         title += " - worker disabled";
+                        element.addClass('watch-status-unknown');
                     }
                     titleElement.text(title);
-                    
                     statusElement.text(watchData['status']);
 
                     if (watchData['time']) {
