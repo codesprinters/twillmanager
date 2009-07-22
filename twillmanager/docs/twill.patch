@@ -1,0 +1,27 @@
+diff -ur twill-0.9-py2.5.egg/twill/browser.py twill-0.9-py2.5.egg.mod/twill/browser.py
+--- twill-0.9-py2.5.egg/twill/browser.py        2009-07-22 16:42:49.000000000 +0200
++++ twill-0.9-py2.5.egg.mod/twill/browser.py    2009-07-22 16:42:26.000000000 +0200
+@@ -60,7 +60,7 @@
+         self.cj = cj
+
+         # Ask for MIME type 'text/html' by preference.
+-        self._browser.addheaders = [("Accept", "text/html; */*")]
++        self._browser.addheaders = [("Accept", "text/html, */*")]
+
+         # ignore robots.txt
+         self._browser.set_handle_robots(None)
+diff -ur twill-0.9-py2.5.egg/twill/other_packages/_mechanize_dist/_auth.py twill-0.9-py2.5.egg.mod/twill/other_packages/_mechanize_dist/_auth.py
+--- twill-0.9-py2.5.egg/twill/other_packages/_mechanize_dist/_auth.py   2009-07-22 16:42:49.000000000 +0200
++++ twill-0.9-py2.5.egg.mod/twill/other_packages/_mechanize_dist/_auth.py       2009-07-22 16:42:26.000000000 +0200
+@@ -11,9 +11,9 @@
+
+ """
+
+-import re, base64, urlparse, posixpath, md5, sha, sys, copy
++import re, base64, urlparse, posixpath, md5, sha, sys, copy, time, os
+
+-from urllib2 import BaseHandler
++from urllib2 import BaseHandler, parse_keqv_list, parse_http_list
+ from urllib import getproxies, unquote, splittype, splituser, splitpasswd, \
+      splitport
+

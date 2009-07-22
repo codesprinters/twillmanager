@@ -293,6 +293,9 @@ class Worker(twillmanager.async.Worker):
                 self.status_notify(old_status, new_status, out.getvalue())
                 self.watch.last_alert = time.time()
                 self.watch.update_status(self.connection)
+        except Exception, e:
+            logger.error("Worker `%s` (id: %s) failed with exception: %s" % (self.watch.name, self.id, e.message))
+            raise
         finally:
             if self.on_end:
                 self.on_end()
