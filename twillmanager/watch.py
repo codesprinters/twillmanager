@@ -290,7 +290,7 @@ class Worker(twillmanager.async.Worker):
 
             if status_has_changed or (last_alert_was_long_ago and new_status == STATUS_FAILED):
                 logger.info("Sending notification for watch `%s` (id: %s)" % (self.watch.name, self.id))
-                self.status_notify(old_status, new_status, out.getvalue())
+                self.status_notify(old_status, new_status, output)
                 self.watch.last_alert = time.time()
                 self.watch.update_status(self.connection)
         except Exception, e:
