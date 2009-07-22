@@ -2,10 +2,11 @@
 
 from __future__ import absolute_import
 
-from mock import Mock
+from mock import Mock, patch
 import multiprocessing
 from nose.tools import *
 
+import twillmanager.mail
 from twillmanager.async import Worker, WorkerProxy
 from twillmanager.db import create_tables, create_db_connection
 from twillmanager.watch import Watch
@@ -112,8 +113,8 @@ class Test_Watch(object):
         assert_equal(w1.interval, w2.interval)
 
 
-class Test_WorkerProxy(object):
-    """ Tests for AsyncProcess"""
+class Test_AsyncWorkerProxy(object):
+    """ Tests for async.WorkerProxy"""
     def test_messages_are_queued(self):
         worker_proxy = WorkerProxy()
         worker_proxy.queue_command('zero')
@@ -132,7 +133,8 @@ class Test_WorkerProxy(object):
         assert_equal(('three',('a','b','c')), calls[3])
 
 
-class Test_Worker(object):
+class Test_AsyncWorker(object):
+    """ Tests for async.Worker"""
     def test_messages_are_executed(self):
         def term(worker):
             worker.running = False
@@ -158,3 +160,60 @@ class Test_Worker(object):
         worker.third.assert_called_with(1,2)
         assert not worker.running
         
+class Test_WatchWorker(object):
+    """ Tests for watch.Worker """
+
+    @patch('twillmanager.mail.create_mailer')
+    def test_status_notify_change(self, create_mailer_mock):
+        """ Test sending e-mails"""
+        mailer = Mock()
+        mailer.send_mail = Mock()
+        create_mailer_mock.return_value = mailer
+
+
+        watch = Mock()
+        watch.name = 'codesprinters.com'
+        watch.script = 'go "http://codesprinters.com"'
+        watch.emails = 'jobs@codesprinters.com, pstradomski@codesprinters.com'
+
+        config = {'mail.from': 'test@codesprinters.com'}
+
+        worker = twillmanager.watch.Worker(multiprocessing.Queue(0), id=1, config=config)
+        worker.watch = watch
+        worker.status_notify('FAILED', "OK", "Is ok now")
+
+        assert_true(mailer.send_mail.called)
+        args = mailer.send_mail.call_args[0]
+        assert_equals(4, len(args))
+        assert_equals('test@codesprinters.com', args[0])
+        assert_equals(['jobs@codesprinters.com', 'pstradomski@codesprinters.com'], args[1])
+        assert_equals('Watch codesprinters.com status change FAILED -> OK', args[2])
+        assert_equals('Script:\ngo "http://codesprinters.com"\n\nResult:\nIs ok now', args[3])
+
+    @patch('twillmanager.mail.create_mailer')
+    def test_status_notify_still(self, create_mailer_mock):
+        """ Test sending e-mails"""
+        mailer = Mock()
+        mailer.send_mail = Mock()
+        create_mailer_mock.return_value = mailer
+
+        
+        watch = Mock()
+        watch.name = 'codesprinters.com'
+        watch.script = 'go "http://codesprinters.com"'
+        watch.emails = 'jobs@codesprinters.com, pstradomski@codesprinters.com'
+
+        config = {'mail.from': 'test@codesprinters.com'}
+
+        worker = twillmanager.watch.Worker(multiprocessing.Queue(0), id=1, config=config)
+        worker.watch = watch
+        worker.status_notify('FAILED', "FAILED", "Kick it")
+
+        assert_true(mailer.send_mail.called)
+        args = mailer.send_mail.call_args[0]
+        assert_equals(4, len(args))
+        assert_equals('test@codesprinters.com', args[0])
+        assert_equals(['jobs@codesprinters.com', 'pstradomski@codesprinters.com'], args[1])
+        assert_equals('Watch codesprinters.com status is still FAILED', args[2])
+        assert_equals('Script:\ngo "http://codesprinters.com"\n\nResult:\nKick it', args[3])
+

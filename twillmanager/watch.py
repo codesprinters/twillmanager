@@ -14,7 +14,7 @@ import twill.commands
 import twill.parse
 
 from twillmanager.db import get_db_connection, close_db_connection
-from twillmanager.mail import create_mailer
+import twillmanager.mail
 from twillmanager.log import logger
 import twillmanager.async
 
@@ -340,7 +340,7 @@ class Worker(twillmanager.async.Worker):
 
         body = "Script:\n%s\n\nResult:\n%s" % (self.watch.script, message)
 
-        mailer = create_mailer(self.config)
+        mailer = twillmanager.mail.create_mailer(self.config)
         mailer.send_mail(sender, recipients, subject, body)
         
 
