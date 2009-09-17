@@ -39,7 +39,7 @@ input.wideinput {
 }
 
 td, th {
-    padding-right: 3px;
+    padding-right: 15px;
     text-align: left;
     vertical-align: top;
 }
@@ -69,11 +69,13 @@ td, th {
 .horizontal-menu a {
     background: white;
     border: 1px solid black;
-    padding: 2px;
+    padding: 2px 15px;
     display: block;
     float: left;
     margin-right: 5px;
     border-radius: 5px;
+    text-decoration: none;
+    color: #333333;
     -moz-border-radius: 5px;
     -webkit-border-radius: 5px;
 }
