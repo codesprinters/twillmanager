@@ -5,7 +5,7 @@ body {
 }
 
 
-h1, h2 {
+h1 {
     font-weight: bold;
 }
 
@@ -16,8 +16,10 @@ h1 {
 }
 
 h2 {
-    font-size: 150%;
+    font-size: 1.4em;
     color: #CC0000;
+    text-transform: uppercase;
+    font-weight: normal;
 }
 
 hr {
